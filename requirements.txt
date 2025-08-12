@@ -1,0 +1,16 @@
+python-a2a
+a2a-sdk
+google-cloud-aiplatform
+google-genai
+google-adk
+
+psycopg2-binary
+pydantic
+python-dotenv
+
+crewai 
+
+langgraph
+langchain
+langchain-community
+langchain-google-genai 
