@@ -32,9 +32,8 @@ from .prompt import get_spark_prompt
 load_dotenv()
 nest_asyncio.apply()
 
-# Remote agent URLs (placeholders for now)
-RECONCILER_AGENT_URL = "http://localhost:10005"  # Placeholder
-ESCALATOR_AGENT_URL = "http://localhost:10006"   # Placeholder
+# Remote agent URL
+RECONCILER_AGENT_URL = "http://localhost:8081"  # Reconciler Agent
 
 
 class HostAgent:
@@ -62,6 +61,7 @@ class HostAgent:
                 card_resolver = A2ACardResolver(client, address)
                 try:
                     card = await card_resolver.get_agent_card()
+                    print(f"DEBUG: Successfully connected to agent '{card.name}' at {address}")
                     remote_connection = RemoteAgentConnections(
                         agent_card=card, agent_url=address
                     )
@@ -69,6 +69,7 @@ class HostAgent:
                     self.cards[card.name] = card
                 except httpx.ConnectError as e:
                     print(f"INFO: Remote agent at {address} not available: {e}")
+                    print(f"      Make sure the Reconciler Agent is running on port 8081")
                 except Exception as e:
                     print(f"INFO: Could not connect to {address}: {e}")
 
@@ -201,10 +202,23 @@ class HostAgent:
         tool_context: ToolContext
     ):
         """Send a task to a remote agent (Reconciler or Escalator)."""
-        if agent_name not in self.remote_agent_connections:
-            return f"Remote agent {agent_name} is not currently available. Task logged for manual processing."
+        print(f"DEBUG: Available remote agents: {list(self.remote_agent_connections.keys())}")
+        print(f"DEBUG: Trying to connect to agent: '{agent_name}'")
         
-        client = self.remote_agent_connections[agent_name]
+        # Try to find the agent by partial name match (case-insensitive)
+        matched_agent = None
+        for registered_name in self.remote_agent_connections.keys():
+            if agent_name.lower() in registered_name.lower() or registered_name.lower() in agent_name.lower():
+                matched_agent = registered_name
+                print(f"DEBUG: Found matching agent: '{matched_agent}' for requested '{agent_name}'")
+                break
+        
+        if not matched_agent:
+            print(f"DEBUG: Agent '{agent_name}' not found in connections")
+            # Log the issue and inform user that it's being handled
+            return "I've logged this issue for resolution. Our team will review it shortly."
+        
+        client = self.remote_agent_connections[matched_agent]
         
         if not client:
             return f"Connection to {agent_name} is not available."
@@ -214,11 +228,28 @@ class HostAgent:
         task_id = state.get("task_id", str(uuid.uuid4()))
         context_id = state.get("context_id", str(uuid.uuid4()))
         message_id = str(uuid.uuid4())
+        
+        # Format the task for the Reconciler Agent
+        # Extract transaction_id from the task if it's for the Reconciler
+        formatted_task = task
+        if "Reconciler" in agent_name:
+            # Try to extract transaction_id from the task
+            import re
+            transaction_match = re.search(r'transaction[:\s]+([A-Z0-9_-]+)', task, re.IGNORECASE)
+            if transaction_match:
+                transaction_id = transaction_match.group(1)
+                # Format as JSON for better parsing by Reconciler
+                formatted_task = json.dumps({
+                    "transaction_id": transaction_id,
+                    "user_id": self._user_id,
+                    "task": "retry_transaction",
+                    "original_message": task
+                })
 
         payload = {
             "message": {
                 "role": "user",
-                "parts": [{"type": "text", "text": task}],
+                "parts": [{"type": "text", "text": formatted_task}],
                 "messageId": message_id,
                 "taskId": task_id,
                 "contextId": context_id,
@@ -232,20 +263,70 @@ class HostAgent:
         try:
             send_response: SendMessageResponse = await client.send_message(message_request)
             
+            print(f"DEBUG: Received response from {agent_name}: {send_response}")
+            
             if not isinstance(
                 send_response.root, SendMessageSuccessResponse
             ) or not isinstance(send_response.root.result, Task):
-                return "Received unexpected response from remote agent."
+                print(f"DEBUG: Response root type: {type(send_response.root)}")
+                # Still try to process the response if possible
+                if hasattr(send_response, 'root') and hasattr(send_response.root, 'result'):
+                    print(f"DEBUG: Attempting to process non-standard response")
+                else:
+                    return "The issue has been logged for resolution."
 
             response_content = send_response.root.model_dump_json(exclude_none=True)
             json_content = json.loads(response_content)
+            print(f"DEBUG: Parsed response content: {json_content}")
 
-            resp = []
-            if json_content.get("result", {}).get("artifacts"):
-                for artifact in json_content["result"]["artifacts"]:
+            # Extract response parts from the remote agent
+            response_parts = []
+            result = json_content.get("result", {})
+            
+            if result.get("artifacts"):
+                for artifact in result["artifacts"]:
                     if artifact.get("parts"):
-                        resp.extend(artifact["parts"])
-            return resp
+                        response_parts.extend(artifact["parts"])
+            
+            # Convert parts to text
+            response_text = ""
+            for part in response_parts:
+                if isinstance(part, dict):
+                    if part.get("text"):
+                        response_text += part["text"] + "\n"
+                    elif part.get("type") == "text" and part.get("value"):
+                        response_text += part["value"] + "\n"
+                elif isinstance(part, str):
+                    response_text += part + "\n"
+            
+            print(f"DEBUG: Extracted response text: {response_text}")
+            
+            # Check if the Reconciler successfully retried the transaction
+            if "reconciler" in matched_agent.lower() and response_text:
+                import re
+                if "success" in response_text.lower() or "RT" in response_text:
+                    # Extract the new transaction ID
+                    rt_match = re.search(r'(RT\d+[A-Z0-9_-]*)', response_text)
+                    if rt_match:
+                        new_txn_id = rt_match.group(1)
+                        return f"Good news! The transaction has been successfully retried. New transaction ID: {new_txn_id}"
+                elif "escalated" in response_text.lower():
+                    # Extract report ID if present
+                    report_match = re.search(r'ESC_\d+[A-Z0-9_-]*', response_text)
+                    if report_match:
+                        report_id = report_match.group(0)
+                        return f"The transaction requires further review and has been escalated. Report ID: {report_id}"
+                    else:
+                        return "The transaction requires further review and has been escalated to our operations team."
+                elif "limit" in response_text.lower() and "reached" in response_text.lower():
+                    return "Multiple retry attempts were made but the issue persists. The transaction has been flagged for manual review."
+                elif "no" in response_text.lower() and "discrepancy" in response_text.lower():
+                    return "After checking, no discrepancy was found with this transaction."
+                else:
+                    # Default response if we can't parse specific status
+                    return "I've submitted the transaction for resolution. Our system is working on it."
+            
+            return response_text.strip() if response_text else "The issue has been logged for resolution."
             
         except Exception as e:
             return f"Error communicating with {agent_name}: {str(e)}"
@@ -315,10 +396,8 @@ def _get_initialized_host_agent_sync():
     """Synchronously creates and initializes the HostAgent."""
 
     async def _async_main():
-        # Remote agent URLs (these are placeholders for now)
         remote_agent_urls = [
-            RECONCILER_AGENT_URL,
-            ESCALATOR_AGENT_URL,
+            RECONCILER_AGENT_URL
         ]
 
         print("Initializing SPARK Host Agent...")

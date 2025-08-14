@@ -4,107 +4,73 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This repository contains two main multi-agent AI applications built with Google's Agent Development Kit (ADK) and related frameworks:
+This repository contains the SPARK multi-agent AI application built with Google's Agent Development Kit (ADK):
 
-1. **a2a_friend_scheduling**: Demonstration of Google's A2A (Agent-to-Agent) protocol. Multi-agent system for scheduling meetings between friends using different agent frameworks (ADK, LangGraph, CrewAI). **This folder should be referenced religiously as the canonical example for A2A implementations.**
-
-2. **travel-concierge**: Comprehensive example of a production-ready agent built with Google ADK. Shows best practices for complex multi-agent orchestration. **This folder should be referenced religiously as the canonical example for comprehensive ADK agent implementations.**
-
-## IMPORTANT: Reference Implementation Folders
-
-**Both `a2a_friend_scheduling` and `travel-concierge` folders are reference implementations that should be studied and followed religiously when creating new agent implementations. They demonstrate best practices, proper architecture patterns, and standard approaches for building agents with Google's technologies.**
+**SPARK**: Multi-agent banking transaction resolution system for BPI (Bank of the Philippine Islands) that detects and resolves floating cash anomalies. Uses A2A protocol for agent communication and PostgreSQL for transaction data.
 
 ## Architecture
 
-### a2a_friend_scheduling
-- **Host Agent** (ADK): Orchestrates scheduling between friend agents
-- **Kaitlynn Agent** (LangGraph): Personal scheduling agent
-- **Nate Agent** (CrewAI): Personal scheduling agent  
-- **Karley Agent** (ADK): Personal scheduling agent
-- Agents communicate via HTTP endpoints to coordinate availability
-
-### travel-concierge
-- **Root Agent**: Main orchestrator
-- **Pre-booking agents**: inspiration, planning, booking
-- **Post-booking agents**: pre_trip, in_trip, post_trip
-- Integrations with Google Places API, Google Search, and MCP tools
+### SPARK (Banking Transaction Resolution System)
+- **Host Agent** (ADK): Primary client-facing agent with database access
+  - Detects floating cash anomalies in transactions
+  - Routes failed transactions to reconciler for retry
+  - Sandboxed database queries limited to authorized user
+- **Reconciler Agent** (ADK): Automated transaction retry system
+  - Fetches transaction details from database
+  - Creates retry transactions (RT1_, RT2_ prefixes)
+  - Updates both original and retry transactions as successful
+  - Always calls escalator for report generation
+- **Escalator Agent** (ADK Sub-agent): Report generation system
+  - Creates SUCCESS reports (SUC_ prefix) for successful retries
+  - Creates ESCALATION reports (ESC_ prefix) for failures
+  - Saves comprehensive reports to messages table
+- All agents use A2A protocol over HTTP (ports 8000, 8081)
 
 ## Development Commands
 
-### For a2a_friend_scheduling agents:
+### For SPARK agents:
 Each agent must run in separate terminal:
 ```bash
-# Kaitlynn Agent (LangGraph)
-cd a2a_friend_scheduling/kaitlynn_agent_langgraph
-uv venv && source .venv/bin/activate
-uv run --active app/__main__.py
+# Host Agent (run with web interface)
+cd spark/host_agent_adk
+python -m host adk web
 
-# Nate Agent (CrewAI)
-cd a2a_friend_scheduling/nate_agent_crewai  
-uv venv && source .venv/bin/activate
-uv run --active .
+# Reconciler Agent (run on port 8081)
+cd spark/reconciler_agent
+python __main__.py
 
-# Karley Agent (ADK)
-cd a2a_friend_scheduling/karley_agent_adk
-uv venv && source .venv/bin/activate
-uv run --active .
-
-# Host Agent (ADK) - run last
-cd a2a_friend_scheduling/host_agent_adk
-uv venv && source .venv/bin/activate
-uv run --active adk web
-```
-
-### For travel-concierge:
-```bash
-cd travel-concierge
-poetry install
-eval $(poetry env activate)
-
-# Run agent via CLI
-adk run travel_concierge
-
-# Run agent with web interface
-adk web
-
-# Run tests
-poetry install --with dev
-pytest tests  # Unit tests
-pytest eval   # Trajectory tests
-
-# Deploy to Vertex AI
-poetry install --with deployment
-python deployment/deploy.py --create
+# Note: Escalator is a sub-agent of Reconciler and doesn't run separately
 ```
 
 ## Environment Setup
 
-### a2a_friend_scheduling
-Create `.env` in `a2a_friend_scheduling/`:
+### SPARK
+Create `.env` in `spark/`:
 ```
 GOOGLE_API_KEY="your_api_key_here"
-```
-
-### travel-concierge
-Create `.env` in `travel-concierge/`:
-```
-GOOGLE_GENAI_USE_VERTEXAI=1
+# OR for Vertex AI:
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your_project_id
 GOOGLE_CLOUD_LOCATION=us-central1
-GOOGLE_PLACES_API_KEY=your_places_api_key
-TRAVEL_CONCIERGE_SCENARIO=travel_concierge/profiles/itinerary_empty_default.json
+
+# Database configuration
+DB_NAME=your_database_name
+DB_HOST=localhost
+DB_PORT=5432
+DB_USER=your_db_user
+DB_PASSWORD=your_db_password
 ```
 
 ## Key Technical Details
 
-- **Python Version**: 3.11+ (travel-concierge), 3.13 (a2a_friend_scheduling with a2a-sdk)
-- **Package Management**: Poetry (travel-concierge), uv (a2a_friend_scheduling)
+- **Python Version**: 3.11+
+- **Package Management**: uv
 - **Testing Framework**: pytest with pytest-asyncio
 - **Main Dependencies**: google-adk, google-genai, pydantic, python-dotenv
 
 ## Project Structure Patterns
 
-Both projects follow similar patterns:
+The project follows these patterns:
 - Agent definitions in `agent.py` files
 - Tool implementations in separate tool modules
 - Pydantic models for type safety
@@ -114,13 +80,18 @@ Both projects follow similar patterns:
 ## Testing Approach
 
 - Unit tests check agent and tool responses
-- Trajectory tests validate end-to-end agent interactions
-- Example sessions provided in markdown files (pre_booking_sample.md, post_booking_sample.md)
-- Programmatic test examples in tests/programmatic_example.py
+- Integration tests validate end-to-end agent interactions
+- Agents must be started in correct order for testing
 
 ## Important Notes
 
 - Always ensure virtual environments are activated before running agents
-- Agents must be started in correct order (friend agents before host agent)
-- Travel-concierge can load predefined itineraries for testing
-- Both projects use mocked external services (flights, hotels, etc.) suitable for demonstrations
+- Host agent must be started before testing user interactions
+- Reconciler agent handles all retry logic and escalation
+- Database queries are sandboxed to prevent cross-user data access
+
+# Important Instruction Reminders
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (*.md) or README files. Only create documentation files if explicitly requested by the User.

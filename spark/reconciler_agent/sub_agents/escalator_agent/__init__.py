@@ -1,0 +1,1 @@
+"""Escalator sub-agent for creating human-readable escalation reports."""
