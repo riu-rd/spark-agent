@@ -7,7 +7,12 @@
       "Bash(grep:*)",
       "Bash(rm:*)",
       "Bash(python test_database_tools.py)",
-      "Bash(del test_database_tools.py)"
+      "Bash(del test_database_tools.py)",
+      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\test_host_improvements.py\")",
+      "Bash(python test:*)",
+      "Bash(python:*)",
+      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\reconciler_agent\\tools\\log_message.py\")",
+      "Bash(timeout:*)"
     ],
     "deny": []
   }
