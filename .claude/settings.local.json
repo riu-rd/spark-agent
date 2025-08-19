@@ -18,7 +18,8 @@
       "Bash(del verify_test.py)",
       "Bash(uv run:*)",
       "Bash(cp:*)",
-      "Bash(uv sync:*)"
+      "Bash(uv sync:*)",
+      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\host_agent_adk\\host\\tools\\query_agent_capabilities.py\")"
     ],
     "deny": []
   }
