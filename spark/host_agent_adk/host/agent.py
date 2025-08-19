@@ -215,8 +215,7 @@ class HostAgent:
         
         if not matched_agent:
             print(f"DEBUG: Agent '{agent_name}' not found in connections")
-            # Log the issue and inform user that it's being handled
-            return "I've logged this issue for resolution. Our team will review it shortly."
+            return f"ERROR: Agent '{agent_name}' not found. Cannot send message."
         
         client = self.remote_agent_connections[matched_agent]
         
@@ -273,7 +272,7 @@ class HostAgent:
                 if hasattr(send_response, 'root') and hasattr(send_response.root, 'result'):
                     print(f"DEBUG: Attempting to process non-standard response")
                 else:
-                    return "The issue has been logged for resolution."
+                    return f"ERROR: Invalid response from {agent_name}. Response missing required fields."
 
             response_content = send_response.root.model_dump_json(exclude_none=True)
             json_content = json.loads(response_content)
@@ -323,10 +322,10 @@ class HostAgent:
                 elif "no" in response_text.lower() and "discrepancy" in response_text.lower():
                     return "After checking, no discrepancy was found with this transaction."
                 else:
-                    # Default response if we can't parse specific status
-                    return "I've submitted the transaction for resolution. Our system is working on it."
+                    # Return the raw response if we can't parse specific status
+                    return response_text.strip() if response_text else f"ERROR: Empty response from {matched_agent}"
             
-            return response_text.strip() if response_text else "The issue has been logged for resolution."
+            return response_text.strip() if response_text else f"ERROR: No response text from {matched_agent}"
             
         except Exception as e:
             return f"Error communicating with {agent_name}: {str(e)}"

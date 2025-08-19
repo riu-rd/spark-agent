@@ -1,0 +1,48 @@
+{
+  "message_type": "risk_alert",
+  "source": "TRYBE_Risk_Detector",
+  "timestamp": "2025-01-19T15:30:00Z",
+  "transaction_id": "TXN_2025_001",
+  "user_id": "USER_12345",
+  "risk_assessment": {
+    "risk_score": 0.75,
+    "risk_level": "HIGH",
+    "risk_indicators": [
+      "High transaction amount (>90th percentile)",
+      "Elevated network latency (>1000ms)",
+      "Late night transaction (23:00-04:00)",
+      "New recipient account"
+    ],
+    "fraud_patterns": [
+      "Rapid sequential transactions",
+      "Device fingerprint mismatch"
+    ],
+    "aml_flags": [
+      "Structured transaction pattern",
+      "High-risk jurisdiction involvement"
+    ],
+    "behavioral_anomalies": [
+      "Transaction outside normal user pattern",
+      "Unusual time-of-day for this user"
+    ],
+    "technical_indicators": [
+      "Network timeout predicted",
+      "High latency path detected"
+    ],
+    "detector_findings": "Transaction exhibits multiple high-risk indicators. Probability of becoming floating cash: 75%. Strong correlation between amount, latency, and time factors suggests potential system stress or deliberate exploitation.",
+    "recommended_actions": [
+      "Block transaction immediately",
+      "Flag account for enhanced monitoring",
+      "Request additional verification from user",
+      "Notify fraud prevention team"
+    ]
+  },
+  "transaction_snapshot": {
+    "amount": 15000.00,
+    "transaction_type": "Bank to e-Wallet (GCash)",
+    "recipient_type": "Individual",
+    "recipient_bank": "GCash",
+    "network_latency": 1500,
+    "initiated_at": "2025-01-19T14:30:00Z"
+  }
+}

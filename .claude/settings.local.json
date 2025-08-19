@@ -15,7 +15,10 @@
       "Bash(timeout:*)",
       "mcp__ide__executeCode",
       "Bash(del test_minimal.py test_final.py complete_test.py inspect_models.py)",
-      "Bash(del verify_test.py)"
+      "Bash(del verify_test.py)",
+      "Bash(uv run:*)",
+      "Bash(cp:*)",
+      "Bash(uv sync:*)"
     ],
     "deny": []
   }

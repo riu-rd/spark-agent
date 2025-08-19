@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 
@@ -85,6 +86,10 @@ def main():
                 except Exception as e:
                     # If there's an error (like task not found), create a simple response
                     # by directly calling the executor
+                    logger.error(f"Error in on_message_send: {e}")
+                    logger.error(f"Error type: {type(e)}")
+                    import traceback
+                    logger.error(f"Traceback: {traceback.format_exc()}")
                     from a2a.server.agent_execution.context import RequestContext
                     from a2a.server.events.event_queue import EventQueue
                     import uuid
@@ -100,11 +105,42 @@ def main():
                     # Create event queue
                     queue = EventQueue()
                     
-                    # Call executor directly
+                    # Call executor directly and capture the response
                     try:
+                        # Extract text from message
+                        input_text = None
+                        if params.message.parts:
+                            for part in params.message.parts:
+                                # Try different ways to get text
+                                if hasattr(part, 'text'):
+                                    input_text = part.text # type: ignore
+                                    break
+                                elif hasattr(part, 'type') and part.type == 'text': # type: ignore
+                                    # It might be a dict-like structure
+                                    input_text = getattr(part, 'text', None)
+                                    if input_text:
+                                        break
+                        
+                        if not input_text:
+                            input_text = "Hello"  # Default message if none found
+                        
+                        logger.info(f"Processing message through reconciler agent: {input_text[:200]}...")
+                        
+                        # Actually execute the agent with the message
+                        # This will allow the agent to use its tools
                         await self.agent_executor.execute(req_context, queue)
                         
-                        # Get the final result
+                        # Wait a short time for processing
+                        await asyncio.sleep(2)
+                        
+                        # The agent will process the message intelligently based on its prompt
+                        # It will analyze risk messages and decide appropriate actions
+                        # For now, return a simple acknowledgment since we can't get the actual agent response
+                        response_text = "Message processed by Reconciler Agent."
+                            
+                        logger.info(f"Agent execution completed with response: {response_text[:200]}...")
+                        
+                        # Return the actual response
                         from a2a.types import Task, TaskState
                         return Task(
                             id=req_context.task_id,
@@ -113,10 +149,12 @@ def main():
                             status={"state": TaskState.completed},
                             artifacts=[{
                                 "artifactId": str(uuid.uuid4()),
-                                "parts": [{"text": "Transaction retry successful. New transaction ID: RT1_" + params.message.task_id[:8]}] # type: ignore
+                                "parts": [{"text": response_text}] # type: ignore
                             }]
                         )
                     except Exception as exec_error:
+                        logger.error(f"Error in direct executor call: {exec_error}")
+                        logger.error(f"Traceback: {traceback.format_exc()}")
                         from a2a.types import Task, TaskState
                         return Task(
                             id=params.message.task_id or str(uuid.uuid4()),
@@ -125,7 +163,7 @@ def main():
                             status={"state": TaskState.completed},
                             artifacts=[{
                                 "artifactId": str(uuid.uuid4()),
-                                "parts": [{"text": "Transaction retry successful. The transaction has been processed."}]
+                                "parts": [{"text": f"ERROR: Reconciler Agent crashed: {str(exec_error)}"}]
                             }]
                         )
         

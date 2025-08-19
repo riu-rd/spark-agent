@@ -30,6 +30,7 @@ def create_and_save_report(
     transaction_id: str,
     failure_details: str,
     is_success: Optional[bool] = False,
+    risk_data: Optional[Dict[str, Any]] = None,
     tool_context: Optional[ToolContext] = None
 ) -> Dict[str, Any]:
     """
@@ -39,6 +40,11 @@ def create_and_save_report(
         transaction_id: The transaction ID that was processed
         failure_details: String describing the resolution outcome (success or failure details)
         is_success: Whether the retry was successful (default: False)
+        risk_data: Optional risk detection data including:
+            - risk_level: HIGH/MEDIUM/LOW (should only be MEDIUM/HIGH)
+            - risk_score: Probability (0-1) from ML model
+            - risk_indicators: List of detected risk patterns
+            - recommended_actions: Actions suggested by risk detector
         tool_context: The tool context from ADK
     
     Returns:
@@ -123,26 +129,47 @@ def create_and_save_report(
             """
             retry_transactions = await conn.fetch(retry_query, transaction_id)
             
-            # Generate report ID based on success/failure
+            # Generate report ID based on success/failure and risk level
             timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S")
-            report_prefix = "SUC" if is_success else "ESC"
+            
+            # Determine report prefix based on risk data and success status
+            if risk_data and risk_data.get('risk_level') in ['HIGH', 'MEDIUM']:
+                report_prefix = "RISK_ESC" if risk_data.get('risk_level') == 'HIGH' else "ESC"
+            else:
+                report_prefix = "SUC" if is_success else "ESC"
+            
             report_id = f"{report_prefix}_{timestamp_str}_{transaction_id}"
             
-            # Determine priority based on amount and retry attempts
+            # Determine priority based on amount, retry attempts, and risk level
             amount = float(transaction_data['amount']) if transaction_data['amount'] else 0
             retry_count = len(retry_transactions)
             
-            priority = "LOW"
-            if amount > 50000:
-                priority = "CRITICAL"
-            elif amount > 10000:
-                priority = "HIGH"
-            elif retry_count >= 2:
-                priority = "MEDIUM"
+            # Risk level overrides standard priority
+            if risk_data and risk_data.get('risk_level'):
+                if risk_data.get('risk_level') == 'HIGH':
+                    priority = "CRITICAL"
+                elif risk_data.get('risk_level') == 'MEDIUM':
+                    priority = "HIGH" if amount > 10000 else "MEDIUM"
+                else:
+                    # Should not receive LOW risk, but handle gracefully
+                    priority = "LOW"
+            else:
+                # Standard priority calculation when no risk data
+                priority = "LOW"
+                if amount > 50000:
+                    priority = "CRITICAL"
+                elif amount > 10000:
+                    priority = "HIGH"
+                elif retry_count >= 2:
+                    priority = "MEDIUM"
             
             # Build the comprehensive report
-            report_title = "SUCCESS REPORT - TRANSACTION RETRIED" if is_success else "ESCALATION REPORT FOR FAILED TRANSACTION"
-            report_type = "SUCCESS" if is_success else "ESCALATION"
+            if risk_data and risk_data.get('risk_level') in ['HIGH', 'MEDIUM']:
+                report_title = f"⚠️ RISK ALERT - {risk_data.get('risk_level')} RISK TRANSACTION ⚠️"
+                report_type = "RISK_ESCALATION"
+            else:
+                report_title = "SUCCESS REPORT - TRANSACTION RETRIED" if is_success else "ESCALATION REPORT FOR FAILED TRANSACTION"
+                report_type = "SUCCESS" if is_success else "ESCALATION"
             
             report_lines = [
                 "=" * 70,
@@ -155,8 +182,58 @@ def create_and_save_report(
                 f"Report Type: {report_type}",
                 f"Generated At: {datetime.now().isoformat()}",
                 f"Priority Level: {priority}",
-                "",
-                "2. TRANSACTION DETAILS",
+            ]
+            
+            # Add risk alert status if present
+            if risk_data and risk_data.get('risk_level'):
+                report_lines.append(f"Risk Alert Status: {risk_data.get('risk_level')} RISK DETECTED")
+            
+            # Add RISK ASSESSMENT section if risk data is provided
+            if risk_data and risk_data.get('risk_level') in ['HIGH', 'MEDIUM']:
+                report_lines.extend([
+                    "",
+                    "2. RISK ASSESSMENT (FROM EXTERNAL RISK DETECTOR)",
+                    "-" * 40,
+                    f"Risk Level: {risk_data.get('risk_level')}",
+                ])
+                
+                if risk_data.get('risk_score'):
+                    report_lines.append(f"Risk Score: {risk_data.get('risk_score')}")
+                
+                if risk_data.get('risk_indicators'):
+                    report_lines.append("Risk Indicators Detected:")
+                    for indicator in risk_data.get('risk_indicators', []):
+                        report_lines.append(f"  * {indicator}")
+                
+                if risk_data.get('fraud_patterns'):
+                    report_lines.append("Fraud Patterns:")
+                    for pattern in risk_data.get('fraud_patterns', []):
+                        report_lines.append(f"  * {pattern}")
+                
+                if risk_data.get('aml_flags'):
+                    report_lines.append("AML Flags:")
+                    for flag in risk_data.get('aml_flags', []):
+                        report_lines.append(f"  * {flag}")
+                
+                if risk_data.get('behavioral_anomalies'):
+                    report_lines.append("Behavioral Anomalies:")
+                    for anomaly in risk_data.get('behavioral_anomalies', []):
+                        report_lines.append(f"  * {anomaly}")
+                
+                if risk_data.get('detector_findings'):
+                    report_lines.append(f"External Risk Detector Findings: {risk_data.get('detector_findings')}")
+                
+                if risk_data.get('recommended_actions'):
+                    report_lines.append("Risk Detector Recommended Actions:")
+                    for action in risk_data.get('recommended_actions', []):
+                        report_lines.append(f"  * {action}")
+                
+                report_lines.append("")
+                report_lines.append("3. TRANSACTION DETAILS")
+            else:
+                report_lines.extend([
+                    "",
+                    "2. TRANSACTION DETAILS",
                 "-" * 40,
                 f"Transaction ID: {transaction_data['transaction_id']}",
                 f"User ID: {transaction_data['user_id']}",

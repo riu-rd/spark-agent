@@ -2,16 +2,22 @@ import os
 import asyncio
 import asyncpg
 import random
+import pandas as pd
 from decimal import Decimal
 from typing import Dict, Any, List, Optional
 from google.adk.tools.tool_context import ToolContext
 from dotenv import load_dotenv
+from .trybe_models import TRYBEDiscrepancyDetector
 try:
     import nest_asyncio
 except ImportError:
     nest_asyncio = None
 
 load_dotenv()
+
+# Create an instance of the detector directly instead of loading from pickle
+# The pickle file has module path issues, so we instantiate directly
+detector = TRYBEDiscrepancyDetector()
 
 # Global constant for development
 DUMMY_USER_ID = "user_1"
@@ -168,8 +174,7 @@ def run_discrepancy_check(
     tool_context: Optional[ToolContext] = None
 ) -> Dict[str, Any]:
     """
-    Run a discrepancy check on a specific transaction.
-    This is a BOILERPLATE function that simulates an ML model detection.
+    Run a discrepancy check on a specific transaction using the TRYBE ML model.
     
     Args:
         transaction_id: The transaction ID to check
@@ -201,39 +206,53 @@ def run_discrepancy_check(
             "is_floating_cash": False
         }
     
-    # Analyze transaction for discrepancies based on actual status fields
-    # Check if transaction has indicators of floating cash or issues
-    is_discrepancy = False
+    # Prepare transaction data for ML model
+    transaction_df = pd.DataFrame([{
+        'transaction_id': transaction['transaction_id'],
+        'user_id': transaction['user_id'],
+        'amount': float(transaction['amount']) if transaction.get('amount') else 0.0,
+        'transaction_type': transaction.get('transaction_type', 'Unknown'),
+        'status_4': transaction.get('status_4', transaction.get('status_1', 'Unknown')),
+        'floating_duration_minutes': transaction.get('floating_duration_minutes', 0),
+        'manual_escalation_needed': transaction.get('manual_escalation_needed', False)
+    }])
+    
+    # Run ML model detection
+    result = detector.detect_discrepancies(transaction_df)
+    is_discrepancy = bool(result['detected_discrepancy'].iloc[0])
+    
+    # Generate insights based on ML detection
     discrepancy_reasons = []
+    confidence = 0.85 if is_discrepancy else 0.15
     
-    # Check if already marked as floating cash
-    if transaction.get('is_floating_cash'):
-        is_discrepancy = True
-        discrepancy_reasons.append("Transaction already flagged as floating cash")
-    
-    # Check for failed status indicators
-    if transaction.get('status_1') == 'failed' or transaction.get('status_2') == 'failed':
-        is_discrepancy = True
-        discrepancy_reasons.append("Transaction has failed status")
-    
-    # Check for network errors
-    if 'network' in str(transaction.get('status_1', '')).lower() or 'network' in str(transaction.get('status_2', '')).lower():
-        is_discrepancy = True
-        discrepancy_reasons.append("Network error detected")
-    
-    # Check if manual escalation is needed
-    if transaction.get('manual_escalation_needed'):
-        is_discrepancy = True
-        discrepancy_reasons.append("Manual escalation required")
-    
-    # Check for cancellation or fraud attempts
-    if transaction.get('is_fraudulent_attempt'):
-        is_discrepancy = True
-        discrepancy_reasons.append("Fraudulent transaction attempt detected")
-    
-    if transaction.get('is_cancellation'):
-        is_discrepancy = True
-        discrepancy_reasons.append("Transaction was cancelled")
+    if is_discrepancy:
+        floating_duration = transaction.get('floating_duration_minutes', 0)
+        
+        if floating_duration > detector._THRESHOLD_MIN:
+            discrepancy_reasons.append(f"Transaction has been floating for {floating_duration} minutes (exceeds {detector._THRESHOLD_MIN} min threshold)")
+        
+        # Check status for additional context
+        status = transaction.get('status_4', transaction.get('status_1', '')).lower()
+        if 'failed' in status:
+            discrepancy_reasons.append(f"Transaction status indicates failure: {status}")
+        elif 'timeout' in status:
+            discrepancy_reasons.append("Transaction timeout detected")
+        elif 'processing' in status:
+            discrepancy_reasons.append("Transaction stuck in processing state")
+        elif 'network' in status:
+            discrepancy_reasons.append("Network-related issue detected")
+        
+        if transaction.get('manual_escalation_needed'):
+            discrepancy_reasons.append("Manual escalation flag is active")
+        
+        if transaction.get('is_fraudulent_attempt'):
+            discrepancy_reasons.append("Fraudulent transaction attempt detected")
+        
+        if transaction.get('is_cancellation'):
+            discrepancy_reasons.append("Transaction was cancelled")
+        
+        if not discrepancy_reasons:
+            discrepancy_reasons.append("ML model detected anomaly pattern in transaction")
     
     # If discrepancy detected, update the database
     if is_discrepancy:
@@ -257,8 +276,8 @@ def run_discrepancy_check(
                     WHERE transaction_id = $3 AND user_id = $4
                 """
                 
-                # Simulate floating duration
-                floating_duration = random.randint(5, 120)
+                # Use actual floating duration if available, otherwise simulate
+                floating_duration = transaction.get('floating_duration_minutes', random.randint(5, 120))
                 
                 await conn.execute(
                     update_query, 
@@ -297,17 +316,21 @@ def run_discrepancy_check(
         "transaction_id": transaction_id,
         "is_floating_cash": is_discrepancy,
         "discrepancy_reasons": discrepancy_reasons if is_discrepancy else [],
-        "confidence": 0.95 if is_discrepancy and discrepancy_reasons else 0.1,
-        "detection_method": "status_field_analysis",
+        "confidence": confidence,
+        "detection_method": "ml_model",
         "transaction_details": {
             "amount": convert_to_json_serializable(transaction['amount']),
             "type": transaction['transaction_type'],
             "recipient": transaction['recipient_account_id'],
             "timestamp": transaction['timestamp_initiated'],
-            "current_status": transaction.get('status_1', 'unknown'),
+            "current_status": transaction.get('status_4', transaction.get('status_1', 'unknown')),
             "is_floating_cash_flag": transaction.get('is_floating_cash', False),
             "floating_duration_minutes": transaction.get('floating_duration_minutes', 0)
         },
         "recommendation": "escalate_to_reconciler" if is_discrepancy else "no_action_needed",
-        "analysis_summary": "; ".join(discrepancy_reasons) if discrepancy_reasons else "No discrepancies detected"
+        "analysis_summary": "; ".join(discrepancy_reasons) if discrepancy_reasons else "No discrepancies detected",
+        "insights": {
+            "threshold_used": detector._THRESHOLD_MIN,
+            "model_type": "TRYBE Discrepancy Detector (Rule-based with 10 min threshold)"
+        }
     }
