@@ -1,3 +1,5 @@
+# Python 3.11
+
 python-a2a
 a2a-sdk
 google-cloud-aiplatform
@@ -13,4 +15,10 @@ crewai
 langgraph
 langchain
 langchain-community
-langchain-google-genai 
+langchain-google-genai
+
+# Machine Learning dependencies for TRYBE models
+pandas
+numpy
+scikit-learn
+ipython 

@@ -12,7 +12,10 @@
       "Bash(python test:*)",
       "Bash(python:*)",
       "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\reconciler_agent\\tools\\log_message.py\")",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "mcp__ide__executeCode",
+      "Bash(del test_minimal.py test_final.py complete_test.py inspect_models.py)",
+      "Bash(del verify_test.py)"
     ],
     "deny": []
   }
