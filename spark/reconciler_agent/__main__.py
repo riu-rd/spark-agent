@@ -107,36 +107,54 @@ def main():
                     
                     # Call executor directly and capture the response
                     try:
-                        # Extract text from message
+                        # Extract text from message - improved extraction logic
                         input_text = None
                         if params.message.parts:
                             for part in params.message.parts:
-                                # Try different ways to get text
+                                # Handle different part structures
                                 if hasattr(part, 'text'):
                                     input_text = part.text # type: ignore
                                     break
-                                elif hasattr(part, 'type') and part.type == 'text': # type: ignore
-                                    # It might be a dict-like structure
-                                    input_text = getattr(part, 'text', None)
-                                    if input_text:
+                                elif isinstance(part, dict):
+                                    # Handle dict-like parts
+                                    if 'text' in part:
+                                        input_text = part['text']
+                                        break
+                                    elif part.get('type') == 'text' and 'value' in part:
+                                        input_text = part['value']
+                                        break
+                                elif hasattr(part, '__dict__'):
+                                    # Try to extract from object attributes
+                                    part_dict = part.__dict__
+                                    if 'text' in part_dict:
+                                        input_text = part_dict['text']
                                         break
                         
                         if not input_text:
-                            input_text = "Hello"  # Default message if none found
+                            # Log the actual structure for debugging
+                            logger.error(f"Could not extract text from message parts: {params.message.parts}")
+                            input_text = str(params.message.parts[0]) if params.message.parts else "No message content"
                         
                         logger.info(f"Processing message through reconciler agent: {input_text[:200]}...")
                         
-                        # Actually execute the agent with the message
-                        # This will allow the agent to use its tools
-                        await self.agent_executor.execute(req_context, queue)
+                        # Start the agent execution in a background task
+                        # This allows us to return a quick response while processing continues
+                        async def execute_agent_task():
+                            try:
+                                await self.agent_executor.execute(req_context, queue)
+                                logger.info("Agent execution completed successfully")
+                            except Exception as e:
+                                logger.error(f"Error in background agent execution: {e}")
                         
-                        # Wait a short time for processing
-                        await asyncio.sleep(2)
+                        # Start the execution as a background task
+                        asyncio.create_task(execute_agent_task())
                         
-                        # The agent will process the message intelligently based on its prompt
-                        # It will analyze risk messages and decide appropriate actions
-                        # For now, return a simple acknowledgment since we can't get the actual agent response
-                        response_text = "Message processed by Reconciler Agent."
+                        # Wait a shorter time to allow initial processing
+                        # The report generation will continue in the background
+                        await asyncio.sleep(5)
+                        
+                        # Return immediate acknowledgment that processing has started
+                        response_text = "Transaction retry initiated. Report generation in progress. The transaction will be retried up to 2 times if needed, and a comprehensive report will be generated."
                             
                         logger.info(f"Agent execution completed with response: {response_text[:200]}...")
                         

@@ -1,15 +1,17 @@
-"""Escalator sub-agent for creating human escalation reports."""
+"""Escalator sub-agent for creating comprehensive AI-generated reports."""
 
 from google.adk.agents import Agent
 from .prompt import get_escalator_prompt
-from .tools.create_report import create_and_save_report
+from .tools.fetch_transaction_for_report import fetch_transaction_for_report
+from .tools.save_generated_report import save_generated_report
 
 escalator_agent = Agent(
     model="gemini-2.5-flash",
     name="escalator_agent",
-    description="Creates comprehensive escalation reports for failed transactions requiring human intervention",
+    description="AI-powered report generation system that creates comprehensive, insightful reports for all transaction resolutions",
     instruction=get_escalator_prompt(),
     tools=[
-        create_and_save_report,
+        fetch_transaction_for_report,
+        save_generated_report,
     ],
 )

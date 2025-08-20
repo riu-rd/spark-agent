@@ -24,7 +24,8 @@ class RemoteAgentConnections:
     def __init__(self, agent_card: AgentCard, agent_url: str):
         print(f"agent_card: {agent_card}")
         print(f"agent_url: {agent_url}")
-        self._httpx_client = httpx.AsyncClient(timeout=30)
+        # Increased timeout to 60 seconds to allow for report generation
+        self._httpx_client = httpx.AsyncClient(timeout=60)
         self.agent_client = A2AClient(self._httpx_client, agent_card, url=agent_url)
         self.card = agent_card
         self.conversation_name = None
