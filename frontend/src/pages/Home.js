@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -9,39 +9,42 @@ import {
 } from 'lucide-react';
 import VybeLogo from '../components/VybeLogo';
 import BottomNavigation from '../components/BottomNavigation';
+import { userService } from '../services/api';
 
 const Home = () => {
-    const [balance, setBalance] = useState(parseFloat(localStorage.getItem('walletBalance') || '0').toFixed(2));
+    const [balance, setBalance] = useState(0);
     const [rewardsPoints] = useState('1000');
+    const [loading, setLoading] = useState(true);
 
-    // Update balance when component mounts or localStorage changes
-    React.useEffect(() => {
-        const updateBalance = () => {
-            const storedBalance = parseFloat(localStorage.getItem('walletBalance') || '0').toFixed(2);
-            setBalance(storedBalance);
+    useEffect(() => {
+        const loadUserData = async () => {
+            try {
+                setLoading(true);
+                const walletBalance = await userService.getWalletBalance('user_1');
+                setBalance(walletBalance.toFixed(2));
+                localStorage.setItem('walletBalance', walletBalance.toFixed(2));
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                const storedBalance = parseFloat(localStorage.getItem('walletBalance') || '0');
+                setBalance(storedBalance.toFixed(2));
+            } finally {
+                setLoading(false);
+            }
         };
 
-        // Update balance when the component mounts
-        updateBalance();
+        loadUserData();
 
-        // Listen for storage changes
-        window.addEventListener('storage', updateBalance);
-        window.addEventListener('focus', updateBalance);
+        const interval = setInterval(loadUserData, 10000);
 
-        return () => {
-            window.removeEventListener('storage', updateBalance);
-            window.removeEventListener('focus', updateBalance);
-        };
+        return () => clearInterval(interval);
     }, []);
 
-    // Mock data for trending deals
     const trendingDeals = [
         { id: 1, title: "Business Name", subtitle: "Business Name", image: "/api/placeholder/100/80" },
         { id: 2, title: "Business Name", subtitle: "Business Name", image: "/api/placeholder/100/80" },
         { id: 3, title: "Business Name", subtitle: "Business Name", image: "/api/placeholder/100/80" }
     ];
 
-    // Mock data for featured rewards
     const featuredRewards = [
         { id: 1, title: "Business Name", subtitle: "Business Name", image: "/api/placeholder/100/80" },
         { id: 2, title: "Business Name", subtitle: "Business Name", image: "/api/placeholder/100/80" }
@@ -49,7 +52,6 @@ const Home = () => {
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Header */}
             <header className="bg-white text-black pt-12 pb-6 px-4">
                 <div className="flex justify-between items-center">
                     <div className="flex items-center space-x-3">
@@ -71,10 +73,8 @@ const Home = () => {
                 </div>
             </header>
 
-            {/* Balance Cards */}
             <section className="px-4 -mt-4 mb-6">
                 <div className="grid grid-cols-2 gap-3">
-                    {/* VYBE eWallet Card */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -90,13 +90,16 @@ const Home = () => {
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-gray-900 text-sm">VYBE eWallet</h3>
-                                    <p className="text-lg font-bold text-gray-900">PHP {balance}</p>
+                                    {loading ? (
+                                        <div className="h-7 bg-gray-200 rounded animate-pulse w-24"></div>
+                                    ) : (
+                                        <p className="text-lg font-bold text-gray-900">PHP {balance}</p>
+                                    )}
                                 </div>
                             </div>
                         </Link>
                     </motion.div>
 
-                    {/* BPI Rewards Card */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -119,7 +122,6 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* Promotional Banner */}
             <section className="px-4 mb-6">
                 <motion.div
                     initial={{ opacity: 0, scale: 0.95 }}
@@ -127,7 +129,6 @@ const Home = () => {
                     transition={{ delay: 0.2 }}
                     className="bg-gradient-to-r from-red-500 to-orange-500 rounded-2xl p-6 text-white relative overflow-hidden"
                 >
-                    {/* Decorative elements */}
                     <div className="absolute top-2 left-4">
                         <div className="w-8 h-8 bg-yellow-400 rounded-full opacity-80"></div>
                     </div>
@@ -156,7 +157,6 @@ const Home = () => {
                 </motion.div>
             </section>
 
-            {/* Trending Deals */}
             <section className="mb-6">
                 <div className="flex items-center justify-between px-4 mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Trending Deals</h3>
@@ -171,7 +171,6 @@ const Home = () => {
                             transition={{ delay: 0.3 + index * 0.1 }}
                             className="flex-shrink-0 w-48 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden"
                         >
-                            {/* Decorative elements */}
                             <div className="absolute top-2 left-2">
                                 <div className="w-6 h-6 bg-yellow-400 rounded-full"></div>
                             </div>
@@ -195,7 +194,6 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* Featured Rewards */}
             <section className="mb-20">
                 <div className="flex items-center justify-between px-4 mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Featured Rewards</h3>
@@ -210,7 +208,6 @@ const Home = () => {
                             transition={{ delay: 0.4 + index * 0.1 }}
                             className="flex-shrink-0 w-48 bg-white rounded-2xl p-4 shadow-sm border border-gray-100 relative overflow-hidden"
                         >
-                            {/* Decorative elements */}
                             <div className="absolute top-2 left-2">
                                 <div className="w-6 h-6 bg-yellow-400 rounded-full"></div>
                             </div>
@@ -234,7 +231,6 @@ const Home = () => {
                 </div>
             </section>
 
-            {/* Bottom Navigation */}
             <BottomNavigation />
         </div>
     );

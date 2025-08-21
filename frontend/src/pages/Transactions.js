@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
@@ -21,93 +21,97 @@ import {
 import TransactionList from '../components/TransactionList';
 import PrivacyNoticeModal from '../components/PrivacyNoticeModal';
 import BottomNavigation from '../components/BottomNavigation';
-import { createDemoAgentTransaction, getTransactionStats } from '../utils/transactionManager';
+import { userService } from '../services/api';
+import { createDemoAgentTransaction, getTransactionStats } from '../utils/databaseTransactionManager';
 
 const Transactions = () => {
-    const [balance, setBalance] = useState(parseFloat(localStorage.getItem('walletBalance') || '0').toFixed(2));
+    const [balance, setBalance] = useState(0);
     const [showBalance, setShowBalance] = useState(true);
     const [showPrivacyNotice, setShowPrivacyNotice] = useState(false);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
-    // Update balance when component mounts or localStorage changes
-    React.useEffect(() => {
-        const updateBalance = () => {
-            const storedBalance = parseFloat(localStorage.getItem('walletBalance') || '0').toFixed(2);
-            setBalance(storedBalance);
+    useEffect(() => {
+        const loadUserData = async () => {
+            try {
+                setLoading(true);
+                const walletBalance = await userService.getWalletBalance('user_1');
+                setBalance(walletBalance.toFixed(2));
+                localStorage.setItem('walletBalance', walletBalance.toFixed(2));
+            } catch (error) {
+                console.error('Error loading user data:', error);
+                const storedBalance = parseFloat(localStorage.getItem('walletBalance') || '0');
+                setBalance(storedBalance.toFixed(2));
+            } finally {
+                setLoading(false);
+            }
         };
 
-        // Update balance when the component mounts
-        updateBalance();
+        loadUserData();
 
-        // Listen for storage changes (when balance is updated from AddMoney page)
-        window.addEventListener('storage', updateBalance);
-        
-        // Also check for changes when the window gains focus (for same-tab updates)
-        window.addEventListener('focus', updateBalance);
+        const interval = setInterval(loadUserData, 10000);
 
-        return () => {
-            window.removeEventListener('storage', updateBalance);
-            window.removeEventListener('focus', updateBalance);
-        };
+        return () => clearInterval(interval);
     }, []);
 
-    const handleDemoAgentTransaction = () => {
-        const transaction = createDemoAgentTransaction();
-        alert(`Demo: AI Agent created transaction!\nRecipient: ${transaction.recipient}\nAmount: ₱${transaction.amount.toLocaleString()}`);
+    const handleDemoAgentTransaction = async () => {
+        try {
+            const transaction = await createDemoAgentTransaction();
+            alert(`AI Agent created transaction!\nRecipient: ${transaction.recipient}\nAmount: ₱${transaction.amount.toLocaleString()}`);
+        } catch (error) {
+            alert('Error creating demo transaction. Please check if the server is running.');
+        }
     };
 
-    // Handle the "Simulate AI" demo flow
     const handleSimulateAI = () => {
         setShowPrivacyNotice(true);
     };
 
     const handleAllowAutoResolution = () => {
         setShowPrivacyNotice(false);
-        // Navigate to Payment Delayed Screen with demo mode
         navigate('/payment-delayed');
     };
 
     const handleResolveManually = () => {
         setShowPrivacyNotice(false);
-        alert('Demo: In real app, you would be redirected to manual resolution options or customer support.');
+        alert('In production, you would be redirected to manual resolution options or customer support.');
     };
 
     const quickActions = [
         { 
             icon: <Send className="w-8 h-8" strokeWidth={1.5} />, 
             label: "Send Money", 
-            action: () => alert('Demo: Send Money feature')
+            action: () => alert('Send Money feature')
         },
         { 
             icon: <Download className="w-8 h-8" strokeWidth={1.5} />, 
             label: "Request Money", 
-            action: () => alert('Demo: Request Money feature')
+            action: () => alert('Request Money feature')
         },
         { 
             icon: <DollarSign className="w-8 h-8" strokeWidth={1.5} />, 
             label: "Cash Out", 
-            action: () => alert('Demo: Cash Out feature')
+            action: () => alert('Cash Out feature')
         },
         { 
             icon: <Building className="w-8 h-8" strokeWidth={1.5} />, 
             label: "Send to Bank", 
-            action: () => alert('Demo: Send to Bank feature')
+            action: () => alert('Send to Bank feature')
         },
         { 
             icon: <Smartphone className="w-8 h-8" strokeWidth={1.5} />, 
             label: "Buy Load", 
-            action: () => alert('Demo: Buy Load feature')
+            action: () => alert('Buy Load feature')
         },
         { 
             icon: <FileText className="w-8 h-8" strokeWidth={1.5} />, 
             label: "Pay Bills", 
-            action: () => alert('Demo: Pay Bills feature')
+            action: () => alert('Pay Bills feature')
         }
     ];
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* Header */}
             <header className="bg-white text-black pt-12 pb-8 px-4">
                 <div className="flex items-center justify-between mb-8">
                     <Link to="/" className="p-2">
@@ -122,13 +126,16 @@ const Transactions = () => {
                     </div>
                 </div>
                 
-                {/* Balance Display */}
                 <div className="text-center py-4">
                     <p className="text-gray-600 text-lg mb-2">Available Balance</p>
                     <div className="flex items-center justify-center space-x-3">
-                        <h2 className="text-4xl font-light text-black">
-                            {showBalance ? `PHP ${balance}` : 'PHP ••••••'}
-                        </h2>
+                        {loading ? (
+                            <div className="h-10 bg-gray-200 rounded animate-pulse w-48"></div>
+                        ) : (
+                            <h2 className="text-4xl font-light text-black">
+                                {showBalance ? `PHP ${balance}` : 'PHP ••••••'}
+                            </h2>
+                        )}
                         <button 
                             onClick={() => setShowBalance(!showBalance)}
                             className="p-1"
@@ -138,7 +145,6 @@ const Transactions = () => {
                     </div>
                 </div>
 
-                {/* Add Money Button */}
                 <div className="text-center mt-6">
                     <Link 
                         to="/add-money"
@@ -150,7 +156,6 @@ const Transactions = () => {
                 </div>
             </header>
 
-            {/* Quick Actions Grid */}
             <section className="px-4 -mt-4 mb-6">
                 <motion.div
                     initial={{ opacity: 0, y: 20 }}
@@ -179,14 +184,12 @@ const Transactions = () => {
                 </motion.div>
             </section>
 
-            {/* Unique Promos */}
             <section className="px-4 mb-6">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Unique Promos</h3>
                     <ChevronRight className="w-5 h-5 text-red-500" />
                 </div>
                 <div className="flex space-x-4 overflow-x-auto">
-                    {/* Promo Card 1 */}
                     <div className="flex-shrink-0 w-64 bg-white rounded-2xl p-4 shadow-sm border">
                         <div className="flex items-center justify-between mb-3">
                             <div className="bg-gradient-to-r from-pink-100 to-purple-100 rounded-lg p-2">
@@ -199,7 +202,6 @@ const Transactions = () => {
                         <div className="bg-gradient-to-r from-teal-100 to-blue-100 rounded-lg h-12"></div>
                     </div>
                     
-                    {/* Promo Card 2 */}
                     <div className="flex-shrink-0 w-64 bg-white rounded-2xl p-4 shadow-sm border">
                         <div className="flex items-center justify-between mb-3">
                             <div className="bg-gradient-to-r from-teal-100 to-green-100 rounded-lg p-2">
@@ -214,21 +216,18 @@ const Transactions = () => {
                 </div>
             </section>
 
-            {/* Recent Activities */}
             <section className="px-4 mb-20">
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="text-lg font-semibold text-gray-900">Recent Activities</h3>
                     <ChevronRight className="w-5 h-5 text-red-500" />
                 </div>
-                <TransactionList limit={3} />
+                <TransactionList limit={5} />
                 
-                {/* Demo Notice */}
                 <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <div className="flex items-center justify-between">
                         <div>
                             <p className="text-sm text-blue-700">
-                                <span className="font-medium">Demo Mode:</span> Showing mock transactions. 
-                                Agent integration will allow dynamic transaction management.
+                                <span className="font-medium">Database Connected:</span> Showing real transactions from user_1
                             </p>
                         </div>
                         <button
@@ -242,10 +241,8 @@ const Transactions = () => {
                 </div>
             </section>
 
-            {/* Bottom Navigation */}
             <BottomNavigation />
 
-            {/* Privacy Notice Modal for Demo Flow */}
             <PrivacyNoticeModal
                 isVisible={showPrivacyNotice}
                 onClose={() => setShowPrivacyNotice(false)}

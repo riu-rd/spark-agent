@@ -2,24 +2,35 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertCircle, Clock, ArrowUpRight, ArrowDownLeft, Bot } from 'lucide-react';
-import transactionManager, { subscribeToTransactions } from '../utils/transactionManager';
+import databaseTransactionManager, { subscribeToTransactions } from '../utils/databaseTransactionManager';
 
 const TransactionList = ({ limit }) => {
     const [transactions, setTransactions] = useState([]);
+    const [loading, setLoading] = useState(true);
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Initial load
-        const initialTransactions = transactionManager.getTransactions(limit);
-        setTransactions(initialTransactions);
+        const loadData = async () => {
+            setLoading(true);
+            await databaseTransactionManager.loadTransactions(limit);
+            const initialTransactions = databaseTransactionManager.getTransactions(limit);
+            setTransactions(initialTransactions);
+            setLoading(false);
+        };
 
-        // Subscribe to updates
+        loadData();
+
         const unsubscribe = subscribeToTransactions((updatedTransactions) => {
             const displayTransactions = limit ? updatedTransactions.slice(0, limit) : updatedTransactions;
             setTransactions(displayTransactions);
         });
 
-        return unsubscribe;
+        databaseTransactionManager.startAutoRefresh(10000);
+
+        return () => {
+            unsubscribe();
+            databaseTransactionManager.stopAutoRefresh();
+        };
     }, [limit]);
 
     const getStatusIcon = (status) => {
@@ -58,8 +69,9 @@ const TransactionList = ({ limit }) => {
     };
 
     const formatDate = (date) => {
+        const transactionDate = new Date(date);
         const now = new Date();
-        const diffInMinutes = Math.floor((now - date) / (1000 * 60));
+        const diffInMinutes = Math.floor((now - transactionDate) / (1000 * 60));
         
         if (diffInMinutes < 60) {
             return `${diffInMinutes}m ago`;
@@ -71,11 +83,34 @@ const TransactionList = ({ limit }) => {
     };
 
     const handleTransactionClick = (transaction) => {
-        // Only navigate if the transaction has ongoing resolution
-        if (transaction.isResolutionOngoing) {
+        if (transaction.isFloatingCash || transaction.needsEscalation) {
             navigate('/payment-delayed');
         }
     };
+
+    if (loading) {
+        return (
+            <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                    <div key={i} className="bg-white rounded-2xl p-4 shadow-sm">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center space-x-4">
+                                <div className="w-12 h-12 bg-gray-200 rounded-full animate-pulse"></div>
+                                <div>
+                                    <div className="h-4 bg-gray-200 rounded w-32 mb-2 animate-pulse"></div>
+                                    <div className="h-3 bg-gray-200 rounded w-24 animate-pulse"></div>
+                                </div>
+                            </div>
+                            <div>
+                                <div className="h-4 bg-gray-200 rounded w-20 mb-2 animate-pulse"></div>
+                                <div className="h-3 bg-gray-200 rounded w-16 animate-pulse"></div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     if (!transactions.length) {
         return (
@@ -85,7 +120,7 @@ const TransactionList = ({ limit }) => {
                 </div>
                 <h3 className="text-lg font-medium text-gray-600 mb-2">No transactions yet</h3>
                 <p className="text-gray-500">Your transaction history will appear here</p>
-                <p className="text-blue-600 text-sm mt-2">(Demo mode - Agent integration ready)</p>
+                <p className="text-blue-600 text-sm mt-2">(Connected to database)</p>
             </div>
         );
     }
@@ -100,7 +135,7 @@ const TransactionList = ({ limit }) => {
                     transition={{ duration: 0.3, delay: index * 0.1 }}
                     onClick={() => handleTransactionClick(transaction)}
                     className={`bg-white rounded-2xl p-4 shadow-sm transition-all duration-200 ${
-                        transaction.isResolutionOngoing 
+                        (transaction.isFloatingCash || transaction.needsEscalation)
                             ? 'hover:shadow-md cursor-pointer hover:bg-gray-50 border border-red-200' 
                             : 'hover:shadow-md'
                     }`}
@@ -115,8 +150,7 @@ const TransactionList = ({ limit }) => {
                                         <ArrowDownLeft className="w-6 h-6 text-green-500" />
                                     )}
                                 </div>
-                                {/* AI Agent indicator */}
-                                {transaction.agentAssisted && (
+                                {transaction.isRetrySuccessful && (
                                     <div className="absolute -top-1 -right-1 bg-blue-500 rounded-full p-1">
                                         <Bot className="w-3 h-3 text-white" />
                                     </div>
@@ -127,7 +161,7 @@ const TransactionList = ({ limit }) => {
                                     <h3 className="font-semibold text-gray-900">
                                         {transaction.type === 'send' 
                                             ? `To ${transaction.recipient}` 
-                                            : `From ${transaction.sender}`
+                                            : `From ${transaction.recipient}`
                                         }
                                     </h3>
                                     {getStatusIcon(transaction.status)}
@@ -136,16 +170,16 @@ const TransactionList = ({ limit }) => {
                                     <span>{transaction.method}</span>
                                     <span>•</span>
                                     <span>{formatDate(transaction.date)}</span>
-                                    {transaction.agentAssisted && (
+                                    {transaction.isFloatingCash && (
                                         <>
                                             <span>•</span>
-                                            <span className="text-blue-600 font-medium">AI Assisted</span>
+                                            <span className="text-orange-600 font-medium">Floating Cash</span>
                                         </>
                                     )}
-                                    {transaction.isResolutionOngoing && (
+                                    {transaction.needsEscalation && (
                                         <>
                                             <span>•</span>
-                                            <span className="text-red-600 font-medium">Click to resolve</span>
+                                            <span className="text-red-600 font-medium">Needs Attention</span>
                                         </>
                                     )}
                                 </div>

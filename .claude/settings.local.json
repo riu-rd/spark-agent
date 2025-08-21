@@ -19,7 +19,13 @@
       "Bash(uv run:*)",
       "Bash(cp:*)",
       "Bash(uv sync:*)",
-      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\host_agent_adk\\host\\tools\\query_agent_capabilities.py\")"
+      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\host_agent_adk\\host\\tools\\query_agent_capabilities.py\")",
+      "Bash(npm install)",
+      "Bash(node server.js)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(node:*)",
+      "Bash(del frontendtest-db.js)"
     ],
     "deny": []
   }
