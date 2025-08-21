@@ -78,7 +78,40 @@ const AddMoney = () => {
         }
     };
 
-    const handleAddMoney = () => {
+    const generateUniqueTransactionId = async () => {
+        // Generate a UUID-like ID with suffix
+        const generateId = () => {
+            const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c === 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+            return `${uuid}_1`;
+        };
+
+        // Try to generate a unique ID (in practice, UUIDs are unique enough)
+        let transactionId = generateId();
+        
+        try {
+            // Check if ID exists in database
+            const response = await axios.get(`http://localhost:3081/api/users/user_1/transactions`);
+            const existingIds = response.data.transactions ? 
+                response.data.transactions.map(t => t.id) : 
+                response.data.map(t => t.id);
+            
+            // Keep generating until we find a unique one
+            while (existingIds.includes(transactionId)) {
+                transactionId = generateId();
+            }
+        } catch (error) {
+            console.error('Error checking transaction IDs:', error);
+            // If we can't check, use the generated ID anyway
+        }
+        
+        return transactionId;
+    };
+
+    const handleAddMoney = async () => {
         if (!selectedAccount) {
             toast.error('Please select an account first');
             return;
@@ -90,18 +123,75 @@ const AddMoney = () => {
         }
 
         const amountToAdd = parseFloat(amount);
-        const newBalance = currentBalance + amountToAdd;
         
-        // Update balance in localStorage
-        localStorage.setItem('walletBalance', newBalance.toFixed(2));
+        // Create loading toast
+        const loadingToast = toast.loading('Processing transaction...');
         
-        // Show success message
-        toast.success(`Successfully added ₱${amountToAdd.toFixed(2)} to your wallet!`);
-        
-        // Navigate back to transactions page after a brief delay
-        setTimeout(() => {
-            navigate('/transactions');
-        }, 1500);
+        try {
+            // Generate unique transaction ID
+            const transactionId = await generateUniqueTransactionId();
+            const now = new Date();
+            const futureTime = new Date(now.getTime() + 5 * 60000); // 5 minutes from now
+            
+            // Create transaction object with all required fields
+            const transactionData = {
+                transaction_id: transactionId,
+                user_id: 'user_1',
+                timestamp_initiated: now.toISOString(),
+                amount: amountToAdd.toFixed(2),
+                transaction_type: 'add_money',
+                recipient_type: 'wallet_topup',
+                recipient_account_id: 'WALLET_USER_1',
+                recipient_bank_name_or_ewallet: 'BPI Digital Wallet',
+                device_id: 'WEB_BROWSER_001',
+                location_coordinates: '14.5995,120.9842', // Manila coordinates
+                simulated_network_latency: 150, // 150ms latency
+                status_timestamp_1: now.toISOString(),
+                status_1: 'initiated',
+                status_timestamp_2: new Date(now.getTime() + 1000).toISOString(), // 1 second later
+                status_2: 'processing',
+                status_timestamp_3: new Date(now.getTime() + 3000).toISOString(), // 3 seconds later
+                status_3: 'pending_completion',
+                status_timestamp_4: null, // Not completed yet - floating cash
+                status_4: null, // Not completed yet - floating cash
+                expected_completion_time: futureTime.toISOString(),
+                is_floating_cash: true, // This is a floating cash transaction
+                floating_duration_minutes: 5, // Expected to float for 5 minutes
+                is_fraudulent_attempt: false,
+                is_cancellation: false,
+                is_retry_successful: false,
+                manual_escalation_needed: false,
+                transaction_types: null // As requested
+            };
+            
+            // Send transaction to backend
+            const response = await axios.post('http://localhost:3081/api/transactions', transactionData);
+            
+            // Dismiss loading toast
+            toast.dismiss(loadingToast);
+            
+            if (response.status === 200 || response.status === 201) {
+                // Show success message
+                toast.success(
+                    `Transaction initiated for ₱${amountToAdd.toFixed(2)}. This will be processed shortly.`,
+                    { duration: 4000 }
+                );
+                
+                // Note: We're NOT updating the wallet balance immediately since this simulates floating cash
+                // The balance will be updated when the transaction is completed
+                
+                // Navigate back to transactions page after a brief delay
+                setTimeout(() => {
+                    navigate('/transactions');
+                }, 1500);
+            } else {
+                toast.error('Failed to create transaction. Please try again.');
+            }
+        } catch (error) {
+            toast.dismiss(loadingToast);
+            console.error('Error creating transaction:', error);
+            toast.error('Error processing transaction. Please try again.');
+        }
     };
 
     const selectedAccountDetails = dummyAccounts.find(acc => acc.id === selectedAccount);

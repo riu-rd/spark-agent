@@ -203,12 +203,6 @@ const TransactionList = ({ limit }) => {
                                             <span className="text-green-600 font-medium">Auto-Resolved</span>
                                         </>
                                     )}
-                                    {transaction.isFloatingCash && !isSuccessfulRetry && (
-                                        <>
-                                            <span>•</span>
-                                            <span className="text-orange-600 font-medium">Floating Cash</span>
-                                        </>
-                                    )}
                                     {transaction.needsEscalation && (
                                         <>
                                             <span>•</span>

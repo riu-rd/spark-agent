@@ -298,6 +298,82 @@ app.post('/api/users/:userId/transactions', async (req, res) => {
   }
 });
 
+// New endpoint for creating floating cash transactions with all fields
+app.post('/api/transactions', async (req, res) => {
+  try {
+    const transaction = req.body;
+    console.log('Creating new transaction:', transaction.transaction_id);
+    
+    const result = await pool.query(
+      `INSERT INTO transactions (
+        transaction_id,
+        user_id,
+        timestamp_initiated,
+        amount,
+        transaction_type,
+        recipient_type,
+        recipient_account_id,
+        recipient_bank_name_or_ewallet,
+        device_id,
+        location_coordinates,
+        simulated_network_latency,
+        status_timestamp_1,
+        status_1,
+        status_timestamp_2,
+        status_2,
+        status_timestamp_3,
+        status_3,
+        status_timestamp_4,
+        status_4,
+        expected_completion_time,
+        is_floating_cash,
+        floating_duration_minutes,
+        is_fraudulent_attempt,
+        is_cancellation,
+        is_retry_successful,
+        manual_escalation_needed,
+        transaction_types
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24, $25, $26, $27) 
+      RETURNING *`,
+      [
+        transaction.transaction_id,
+        transaction.user_id,
+        transaction.timestamp_initiated,
+        transaction.amount,
+        transaction.transaction_type,
+        transaction.recipient_type,
+        transaction.recipient_account_id,
+        transaction.recipient_bank_name_or_ewallet,
+        transaction.device_id,
+        transaction.location_coordinates,
+        transaction.simulated_network_latency,
+        transaction.status_timestamp_1,
+        transaction.status_1,
+        transaction.status_timestamp_2,
+        transaction.status_2,
+        transaction.status_timestamp_3,
+        transaction.status_3,
+        transaction.status_timestamp_4,
+        transaction.status_4,
+        transaction.expected_completion_time,
+        transaction.is_floating_cash,
+        transaction.floating_duration_minutes,
+        transaction.is_fraudulent_attempt,
+        transaction.is_cancellation,
+        transaction.is_retry_successful,
+        transaction.manual_escalation_needed,
+        transaction.transaction_types
+      ]
+    );
+    
+    console.log('Transaction created successfully:', result.rows[0].transaction_id);
+    res.status(201).json(result.rows[0]);
+  } catch (error) {
+    console.error('Error creating transaction:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // Proxy endpoints for Host Agent (ADK)
 app.post('/api/agent/chat', async (req, res) => {
   try {
