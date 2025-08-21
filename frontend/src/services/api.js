@@ -43,6 +43,29 @@ export const transactionService = {
       const response = await api.get(`/users/${userId}/transactions`, {
         params: { limit, offset }
       });
+      
+      // Check if response includes wallet update metadata
+      if (response.data.walletUpdated) {
+        console.log(`Wallet updated! Added ₱${response.data.walletUpdateAmount} from ${response.data.processedRTCount} RT transaction(s)`);
+        console.log('Processed RT transactions:', response.data.processedRTTransactions);
+        
+        // Show notification to user
+        const toast = (await import('react-hot-toast')).default;
+        toast.success(response.data.message, {
+          duration: 5000,
+          icon: '💰'
+        });
+        
+        // Trigger an immediate wallet balance refresh
+        setTimeout(() => {
+          window.dispatchEvent(new CustomEvent('wallet-updated'));
+        }, 100);
+        
+        // Return just the transactions array
+        console.log(`Transactions received: ${response.data.transactions.length} items`);
+        return response.data.transactions;
+      }
+      
       console.log(`Transactions received: ${response.data.length} items`);
       return response.data;
     } catch (error) {

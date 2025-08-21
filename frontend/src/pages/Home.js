@@ -10,6 +10,7 @@ import {
 import VybeLogo from '../components/VybeLogo';
 import BottomNavigation from '../components/BottomNavigation';
 import { userService } from '../services/api';
+import dataRefreshService from '../services/dataRefreshService';
 
 const Home = () => {
     const [balance, setBalance] = useState(0);
@@ -20,6 +21,7 @@ const Home = () => {
         const loadUserData = async () => {
             try {
                 setLoading(true);
+                console.log('[Home] Loading user data...');
                 const walletBalance = await userService.getWalletBalance('user_1');
                 setBalance(walletBalance.toFixed(2));
                 localStorage.setItem('walletBalance', walletBalance.toFixed(2));
@@ -32,11 +34,30 @@ const Home = () => {
             }
         };
 
+        // Initial load
         loadUserData();
 
-        const interval = setInterval(loadUserData, 10000);
+        // Subscribe to data refresh service
+        const unsubscribeRefresh = dataRefreshService.subscribe(() => {
+            console.log('[Home] Refreshing data due to agent response...');
+            loadUserData();
+        });
 
-        return () => clearInterval(interval);
+        // Listen for wallet-updated events (triggered when RT transactions are processed)
+        const handleWalletUpdate = () => {
+            console.log('[Home] Wallet updated due to RT transaction processing');
+            loadUserData();
+        };
+        window.addEventListener('wallet-updated', handleWalletUpdate);
+
+        // Still keep the regular interval refresh
+        const interval = setInterval(loadUserData, 30000); // Changed to 30 seconds to avoid conflicts
+
+        return () => {
+            clearInterval(interval);
+            unsubscribeRefresh();
+            window.removeEventListener('wallet-updated', handleWalletUpdate);
+        };
     }, []);
 
     const trendingDeals = [

@@ -23,6 +23,10 @@ import PrivacyNoticeModal from '../components/PrivacyNoticeModal';
 import BottomNavigation from '../components/BottomNavigation';
 import { userService } from '../services/api';
 import { createDemoAgentTransaction, getTransactionStats } from '../utils/databaseTransactionManager';
+import dataRefreshService from '../services/dataRefreshService';
+
+// Constant to control how many transactions are displayed in Recent Activities
+const RECENT_ACTIVITIES_LIMIT = 2;
 
 const Transactions = () => {
     const [balance, setBalance] = useState(0);
@@ -35,6 +39,7 @@ const Transactions = () => {
         const loadUserData = async () => {
             try {
                 setLoading(true);
+                console.log('[Transactions] Loading user data...');
                 const walletBalance = await userService.getWalletBalance('user_1');
                 setBalance(walletBalance.toFixed(2));
                 localStorage.setItem('walletBalance', walletBalance.toFixed(2));
@@ -47,11 +52,30 @@ const Transactions = () => {
             }
         };
 
+        // Initial load
         loadUserData();
 
-        const interval = setInterval(loadUserData, 10000);
+        // Subscribe to data refresh service
+        const unsubscribeRefresh = dataRefreshService.subscribe(() => {
+            console.log('[Transactions] Refreshing data due to agent response...');
+            loadUserData();
+        });
 
-        return () => clearInterval(interval);
+        // Listen for wallet-updated events (triggered when RT transactions are processed)
+        const handleWalletUpdate = () => {
+            console.log('[Transactions] Wallet updated due to RT transaction processing');
+            loadUserData();
+        };
+        window.addEventListener('wallet-updated', handleWalletUpdate);
+
+        // Still keep the regular interval refresh
+        const interval = setInterval(loadUserData, 30000); // Changed to 30 seconds to avoid conflicts
+
+        return () => {
+            clearInterval(interval);
+            unsubscribeRefresh();
+            window.removeEventListener('wallet-updated', handleWalletUpdate);
+        };
     }, []);
 
     const handleDemoAgentTransaction = async () => {
@@ -221,7 +245,7 @@ const Transactions = () => {
                     <h3 className="text-lg font-semibold text-gray-900">Recent Activities</h3>
                     <ChevronRight className="w-5 h-5 text-red-500" />
                 </div>
-                <TransactionList limit={5} />
+                <TransactionList limit={RECENT_ACTIVITIES_LIMIT} />
                 
                 <div className="mt-4 bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <div className="flex items-center justify-between">

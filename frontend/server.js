@@ -104,6 +104,66 @@ app.get('/api/users/:userId/transactions', async (req, res) => {
     
     console.log(`Found ${result.rows.length} transactions for user ${userId}`);
     
+    // Check for RT transactions that need to be processed
+    let walletUpdateAmount = 0;
+    const rtTransactionsToProcess = [];
+    
+    for (const transaction of result.rows) {
+      // Check if this is an RT transaction with null transaction_types (not yet processed)
+      if (transaction.transaction_id && 
+          transaction.transaction_id.startsWith('RT') && 
+          transaction.transaction_types === null) {
+        
+        console.log(`Found unprocessed RT transaction: ${transaction.transaction_id}, amount: ${transaction.amount}`);
+        rtTransactionsToProcess.push(transaction);
+        walletUpdateAmount += parseFloat(transaction.amount);
+      }
+    }
+    
+    // If we found RT transactions to process, update wallet and mark them as DONE
+    if (rtTransactionsToProcess.length > 0) {
+      console.log(`Processing ${rtTransactionsToProcess.length} RT transactions, total amount: ${walletUpdateAmount}`);
+      
+      // Start a transaction for atomicity
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        
+        // Update wallet balance
+        const updateBalanceResult = await client.query(
+          'UPDATE users SET wallet_balance = wallet_balance + $1 WHERE user_id = $2 RETURNING wallet_balance',
+          [walletUpdateAmount, userId]
+        );
+        
+        console.log(`Updated wallet balance for ${userId}: new balance = ${updateBalanceResult.rows[0].wallet_balance}`);
+        
+        // Mark RT transactions as DONE
+        for (const rtTxn of rtTransactionsToProcess) {
+          await client.query(
+            'UPDATE transactions SET transaction_types = $1 WHERE transaction_id = $2',
+            ['DONE', rtTxn.transaction_id]
+          );
+          console.log(`Marked transaction ${rtTxn.transaction_id} as DONE`);
+        }
+        
+        await client.query('COMMIT');
+        
+        // Update the transaction_types in our result set to reflect the changes
+        result.rows.forEach(row => {
+          if (rtTransactionsToProcess.find(rt => rt.transaction_id === row.transaction_id)) {
+            row.transaction_types = 'DONE';
+          }
+        });
+        
+      } catch (error) {
+        await client.query('ROLLBACK');
+        console.error('Error processing RT transactions:', error);
+        throw error;
+      } finally {
+        client.release();
+      }
+    }
+    
     const transactions = result.rows.map(row => {
       let currentStatus = 'pending';
       let statusTimestamp = row.timestamp_initiated;
@@ -142,11 +202,32 @@ app.get('/api/users/:userId/transactions', async (req, res) => {
         isCancellation: row.is_cancellation,
         isRetrySuccessful: row.is_retry_successful,
         needsEscalation: row.manual_escalation_needed,
-        rawData: row
+        rawData: row,
+        transactionTypes: row.transaction_types
       };
     });
     
-    res.json(transactions);
+    // Include wallet update info in response if RT transactions were processed
+    const response = {
+      transactions: transactions,
+      walletUpdated: rtTransactionsToProcess.length > 0,
+      walletUpdateAmount: walletUpdateAmount,
+      processedRTCount: rtTransactionsToProcess.length
+    };
+    
+    // If not returning wrapper object for backward compatibility, just return transactions
+    if (rtTransactionsToProcess.length === 0) {
+      res.json(transactions);
+    } else {
+      // Include metadata about the wallet update
+      res.json({
+        transactions: transactions,
+        walletUpdated: true,
+        walletUpdateAmount: walletUpdateAmount,
+        processedRTTransactions: rtTransactionsToProcess.map(t => t.transaction_id),
+        message: `Wallet updated: +₱${walletUpdateAmount.toFixed(2)} from ${rtTransactionsToProcess.length} retry transaction(s)`
+      });
+    }
   } catch (error) {
     console.error('Error fetching transactions:', error);
     res.status(500).json({ error: 'Internal server error' });

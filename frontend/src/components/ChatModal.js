@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Bot, User, Loader, RotateCcw } from 'lucide-react';
 import { agentService } from '../services/agentApi';
+import dataRefreshService from '../services/dataRefreshService';
 
 const ChatModal = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([
@@ -69,6 +70,9 @@ const ChatModal = ({ isOpen, onClose }) => {
       };
       
       setMessages(prev => [...prev, agentMessage]);
+      
+      // Trigger data refresh after receiving agent response
+      dataRefreshService.triggerRefresh();
     } catch (error) {
       console.error('Error sending message to agent:', error);
       

@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle, AlertCircle, Clock, ArrowUpRight, ArrowDownLeft, Bot } from 'lucide-react';
 import databaseTransactionManager, { subscribeToTransactions } from '../utils/databaseTransactionManager';
+import dataRefreshService from '../services/dataRefreshService';
 
 const TransactionList = ({ limit }) => {
     const [transactions, setTransactions] = useState([]);
@@ -12,23 +13,34 @@ const TransactionList = ({ limit }) => {
     useEffect(() => {
         const loadData = async () => {
             setLoading(true);
+            console.log('[TransactionList] Loading transactions...');
             await databaseTransactionManager.loadTransactions(limit);
             const initialTransactions = databaseTransactionManager.getTransactions(limit);
             setTransactions(initialTransactions);
             setLoading(false);
         };
 
+        // Initial load
         loadData();
 
+        // Subscribe to transaction updates
         const unsubscribe = subscribeToTransactions((updatedTransactions) => {
             const displayTransactions = limit ? updatedTransactions.slice(0, limit) : updatedTransactions;
             setTransactions(displayTransactions);
         });
 
-        databaseTransactionManager.startAutoRefresh(10000);
+        // Subscribe to data refresh service (triggered by agent responses)
+        const unsubscribeRefresh = dataRefreshService.subscribe(() => {
+            console.log('[TransactionList] Refreshing transactions due to agent response...');
+            loadData();
+        });
+
+        // Reduced auto-refresh to avoid conflicts with agent-triggered refreshes
+        databaseTransactionManager.startAutoRefresh(30000); // Changed to 30 seconds
 
         return () => {
             unsubscribe();
+            unsubscribeRefresh();
             databaseTransactionManager.stopAutoRefresh();
         };
     }, [limit]);
@@ -65,7 +77,8 @@ const TransactionList = ({ limit }) => {
             currency: 'PHP'
         }).format(amount);
         
-        return type === 'send' ? `-${formatted}` : `+${formatted}`;
+        // Always show as positive amount with + prefix
+        return `+${formatted}`;
     };
 
     const formatDate = (date) => {
@@ -127,19 +140,27 @@ const TransactionList = ({ limit }) => {
 
     return (
         <div className="space-y-3">
-            {transactions.map((transaction, index) => (
-                <motion.div
-                    key={transaction.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    onClick={() => handleTransactionClick(transaction)}
-                    className={`bg-white rounded-2xl p-4 shadow-sm transition-all duration-200 ${
-                        (transaction.isFloatingCash || transaction.needsEscalation)
-                            ? 'hover:shadow-md cursor-pointer hover:bg-gray-50 border border-red-200' 
-                            : 'hover:shadow-md'
-                    }`}
-                >
+            {transactions.map((transaction, index) => {
+                // Check if this is a successful retry transaction (RT prefix and is_retry_successful = true)
+                const isSuccessfulRetry = transaction.id && 
+                                         transaction.id.startsWith('RT') && 
+                                         transaction.isRetrySuccessful === true;
+                
+                return (
+                    <motion.div
+                        key={transaction.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.3, delay: index * 0.1 }}
+                        onClick={() => handleTransactionClick(transaction)}
+                        className={`bg-white rounded-2xl p-4 shadow-sm transition-all duration-200 ${
+                            isSuccessfulRetry
+                                ? 'hover:shadow-md border-2 border-green-300 bg-gradient-to-r from-green-50 to-white'
+                                : (transaction.isFloatingCash || transaction.needsEscalation)
+                                    ? 'hover:shadow-md cursor-pointer hover:bg-gray-50 border border-red-200' 
+                                    : 'hover:shadow-md'
+                        }`}
+                    >
                     <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                             <div className="flex-shrink-0 relative">
@@ -164,13 +185,25 @@ const TransactionList = ({ limit }) => {
                                             : `From ${transaction.recipient}`
                                         }
                                     </h3>
+                                    {isSuccessfulRetry && (
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <CheckCircle className="w-3 h-3 mr-1" />
+                                            Retry Success
+                                        </span>
+                                    )}
                                     {getStatusIcon(transaction.status)}
                                 </div>
                                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                                     <span>{transaction.method}</span>
                                     <span>•</span>
                                     <span>{formatDate(transaction.date)}</span>
-                                    {transaction.isFloatingCash && (
+                                    {isSuccessfulRetry && (
+                                        <>
+                                            <span>•</span>
+                                            <span className="text-green-600 font-medium">Auto-Resolved</span>
+                                        </>
+                                    )}
+                                    {transaction.isFloatingCash && !isSuccessfulRetry && (
                                         <>
                                             <span>•</span>
                                             <span className="text-orange-600 font-medium">Floating Cash</span>
@@ -186,9 +219,7 @@ const TransactionList = ({ limit }) => {
                             </div>
                         </div>
                         <div className="text-right">
-                            <div className={`font-semibold ${
-                                transaction.type === 'send' ? 'text-red-600' : 'text-green-600'
-                            }`}>
+                            <div className="font-semibold text-green-600">
                                 {formatAmount(transaction.amount, transaction.type)}
                             </div>
                             <div className={`text-xs px-2 py-1 rounded-full font-medium ${getStatusColor(transaction.status)}`}>
@@ -197,7 +228,8 @@ const TransactionList = ({ limit }) => {
                         </div>
                     </div>
                 </motion.div>
-            ))}
+                );
+            })}
         </div>
     );
 };
