@@ -78,19 +78,19 @@ const AddMoney = () => {
         }
     };
 
-    const generateUniqueTransactionId = async () => {
+    const generateUniqueId = (suffix = '1') => {
         // Generate a UUID-like ID with suffix
-        const generateId = () => {
-            const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-                const r = Math.random() * 16 | 0;
-                const v = c === 'x' ? r : (r & 0x3 | 0x8);
-                return v.toString(16);
-            });
-            return `${uuid}_1`;
-        };
+        const uuid = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+            const r = Math.random() * 16 | 0;
+            const v = c === 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+        return `${uuid}_${suffix}`;
+    };
 
+    const generateUniqueTransactionId = async () => {
         // Try to generate a unique ID (in practice, UUIDs are unique enough)
-        let transactionId = generateId();
+        let transactionId = generateUniqueId('1');
         
         try {
             // Check if ID exists in database
@@ -101,7 +101,7 @@ const AddMoney = () => {
             
             // Keep generating until we find a unique one
             while (existingIds.includes(transactionId)) {
-                transactionId = generateId();
+                transactionId = generateUniqueId('1');
             }
         } catch (error) {
             console.error('Error checking transaction IDs:', error);
@@ -128,8 +128,9 @@ const AddMoney = () => {
         const loadingToast = toast.loading('Processing transaction...');
         
         try {
-            // Generate unique transaction ID
+            // Generate unique transaction ID and recipient account ID
             const transactionId = await generateUniqueTransactionId();
+            const recipientAccountId = generateUniqueId('2'); // Different suffix for recipient
             const now = new Date();
             const futureTime = new Date(now.getTime() + 5 * 60000); // 5 minutes from now
             
@@ -141,7 +142,7 @@ const AddMoney = () => {
                 amount: amountToAdd.toFixed(2),
                 transaction_type: 'add_money',
                 recipient_type: 'wallet_topup',
-                recipient_account_id: 'WALLET_USER_1',
+                recipient_account_id: recipientAccountId,
                 recipient_bank_name_or_ewallet: 'BPI Digital Wallet',
                 device_id: 'WEB_BROWSER_001',
                 location_coordinates: '14.5995,120.9842', // Manila coordinates
