@@ -1,23 +1,66 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Banknote } from 'lucide-react';
 import BottomNavigation from '../components/BottomNavigation';
 import toast from 'react-hot-toast';
+import axios from 'axios';
 
 const AddMoney = () => {
     const navigate = useNavigate();
     const [selectedAccount, setSelectedAccount] = useState('');
     const [amount, setAmount] = useState('');
-    const [currentBalance] = useState(parseFloat(localStorage.getItem('walletBalance') || '0'));
+    const [currentBalance, setCurrentBalance] = useState(parseFloat(localStorage.getItem('walletBalance') || '0'));
+    const [databaseBalance, setDatabaseBalance] = useState(null);
 
-    // Dummy bank accounts - only BPI Savings
-    const dummyAccounts = [
-        { id: 'bpi-savings', name: 'BPI Savings Account', number: '****1234', balance: 50000 }
-    ];
+    // Bank accounts with actual balance from database
+    const [dummyAccounts, setDummyAccounts] = useState([
+        { id: 'bpi-savings', name: 'BPI Savings Account', number: '****1234', balance: 0 }
+    ]);
 
     // Quick amount options
     const quickAmounts = [100, 300, 500, 1000];
+
+    // Fetch actual balance from database
+    useEffect(() => {
+        const fetchBalance = async () => {
+            try {
+                const response = await axios.get('http://localhost:3081/api/users/user_1');
+                const walletBalance = parseFloat(response.data.wallet_balance || 0);
+                
+                // Update database balance
+                setDatabaseBalance(walletBalance);
+                
+                // Update current balance from database
+                setCurrentBalance(walletBalance);
+                localStorage.setItem('walletBalance', walletBalance.toFixed(2));
+                
+                // Update the dummy accounts with the actual balance
+                setDummyAccounts([
+                    { 
+                        id: 'bpi-savings', 
+                        name: 'BPI Savings Account', 
+                        number: '****1234', 
+                        balance: walletBalance 
+                    }
+                ]);
+            } catch (error) {
+                console.error('Error fetching balance:', error);
+                // If error, keep using localStorage value
+                const storedBalance = parseFloat(localStorage.getItem('walletBalance') || '0');
+                setDummyAccounts([
+                    { 
+                        id: 'bpi-savings', 
+                        name: 'BPI Savings Account', 
+                        number: '****1234', 
+                        balance: storedBalance 
+                    }
+                ]);
+            }
+        };
+
+        fetchBalance();
+    }, []);
 
     const handleAccountSelect = (accountId) => {
         setSelectedAccount(accountId);
