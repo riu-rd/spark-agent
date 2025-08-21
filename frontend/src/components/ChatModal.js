@@ -8,7 +8,7 @@ const ChatModal = ({ isOpen, onClose }) => {
   const [messages, setMessages] = useState([
     {
       id: 1,
-      text: "Hello! I'm your BPI banking assistant. I can help you with transaction issues, floating cash detection, and payment resolution. How can I assist you today?",
+      text: "Hello! I'm SPARK, your BPI banking assistant.  How can I assist you today?",
       sender: 'agent',
       timestamp: new Date()
     }
@@ -16,6 +16,7 @@ const ChatModal = ({ isOpen, onClose }) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
+  const [statusMessage, setStatusMessage] = useState('');
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -57,36 +58,64 @@ const ChatModal = ({ isOpen, onClose }) => {
     setMessages(prev => [...prev, userMessage]);
     setInputMessage('');
     setIsLoading(true);
+    setStatusMessage('');
 
     try {
-      // Send message to host agent
-      const response = await agentService.sendMessage(sessionId, inputMessage);
-      
-      const agentMessage = {
-        id: messages.length + 2,
-        text: response.message || response,
-        sender: 'agent',
-        timestamp: new Date()
-      };
-      
-      setMessages(prev => [...prev, agentMessage]);
-      
-      // Trigger data refresh after receiving agent response
-      dataRefreshService.triggerRefresh();
+      // Use streaming endpoint for real-time updates
+      await agentService.sendMessageStream(
+        sessionId, 
+        inputMessage,
+        (status) => {
+          // Update status message for intermediate updates
+          setStatusMessage(status);
+        },
+        (finalMessage) => {
+          // Add final agent response
+          const agentMessage = {
+            id: messages.length + 2,
+            text: finalMessage,
+            sender: 'agent',
+            timestamp: new Date()
+          };
+          
+          setMessages(prev => [...prev, agentMessage]);
+          setStatusMessage('');
+          setIsLoading(false);
+          
+          // Trigger data refresh after receiving agent response
+          dataRefreshService.triggerRefresh();
+        },
+        (error) => {
+          // Handle errors
+          console.error('Error sending message to agent:', error);
+          
+          const errorMessage = {
+            id: messages.length + 2,
+            text: "I'm having trouble connecting to the banking system. Please ensure the host agent is running on port 8000. You can start it with: `uv run python run_api.py` in the agents/host_agent_adk directory.",
+            sender: 'agent',
+            timestamp: new Date(),
+            isError: true
+          };
+          
+          setMessages(prev => [...prev, errorMessage]);
+          setStatusMessage('');
+          setIsLoading(false);
+        }
+      );
     } catch (error) {
       console.error('Error sending message to agent:', error);
       
       // Fallback message if agent is not available
       const errorMessage = {
         id: messages.length + 2,
-        text: "I'm having trouble connecting to the banking system. Please ensure the host agent is running on port 8000. You can start it with: `uv run adk web` in the agents/host_agent_adk directory.",
+        text: "I'm having trouble connecting to the banking system. Please ensure the host agent is running on port 8000.",
         sender: 'agent',
         timestamp: new Date(),
         isError: true
       };
       
       setMessages(prev => [...prev, errorMessage]);
-    } finally {
+      setStatusMessage('');
       setIsLoading(false);
     }
   };
@@ -138,8 +167,8 @@ const ChatModal = ({ isOpen, onClose }) => {
                 <Bot className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div>
-                <h3 className="text-white font-semibold text-sm md:text-base">BPI Assistant</h3>
-                <p className="text-white/80 text-xs hidden md:block">Powered by SPARK AI</p>
+                <h3 className="text-white font-semibold text-sm md:text-base">SPARK BPI Assistant</h3>
+                <p className="text-white/80 text-xs hidden md:block">Powered by Gemini</p>
               </div>
             </div>
             <div className="flex items-center space-x-1 md:space-x-2">
@@ -205,7 +234,13 @@ const ChatModal = ({ isOpen, onClose }) => {
               >
                 <div className="flex items-center space-x-2 bg-white rounded-2xl px-4 py-3 border border-gray-200">
                   <Loader className="w-4 h-4 text-red-500 animate-spin" />
-                  <span className="text-sm text-gray-500">Agent is thinking...</span>
+                  <span className="text-sm text-gray-500">
+                    {statusMessage ? (
+                      <span className="italic">{statusMessage}</span>
+                    ) : (
+                      'Agent is thinking...'
+                    )}
+                  </span>
                 </div>
               </motion.div>
             )}

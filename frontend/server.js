@@ -330,6 +330,70 @@ app.post('/api/agent/chat', async (req, res) => {
   }
 });
 
+// Streaming chat endpoint using Server-Sent Events
+app.get('/api/agent/chat/stream', async (req, res) => {
+  try {
+    console.log('Proxying streaming chat request to host agent:', req.query);
+    
+    // Set headers for SSE
+    res.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+      'Access-Control-Allow-Origin': '*'
+    });
+    
+    // Create request body from query params
+    const requestBody = {
+      session_id: req.query.session_id,
+      message: req.query.message,
+      user_id: req.query.user_id || 'user_1',
+      timestamp: req.query.timestamp || new Date().toISOString()
+    };
+    
+    // Forward streaming request to host agent API on port 8000
+    const axios = (await import('axios')).default;
+    const response = await axios.post('http://localhost:8000/chat/stream', requestBody, {
+      responseType: 'stream',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'text/event-stream'
+      }
+    });
+    
+    // Pipe the stream from host agent to client
+    response.data.on('data', (chunk) => {
+      res.write(chunk);
+    });
+    
+    response.data.on('end', () => {
+      res.end();
+    });
+    
+    response.data.on('error', (error) => {
+      console.error('Stream error:', error);
+      res.write(`data: ${JSON.stringify({ type: 'error', content: error.message })}\n\n`);
+      res.end();
+    });
+    
+    // Handle client disconnect
+    req.on('close', () => {
+      console.log('Client disconnected from stream');
+      if (response.data && response.data.destroy) {
+        response.data.destroy();
+      }
+    });
+    
+  } catch (error) {
+    console.error('Error setting up streaming proxy:', error.message);
+    res.write(`data: ${JSON.stringify({ 
+      type: 'error', 
+      content: 'Failed to connect to host agent streaming endpoint' 
+    })}\n\n`);
+    res.end();
+  }
+});
+
 app.get('/api/agent/health', async (req, res) => {
   try {
     const axios = (await import('axios')).default;

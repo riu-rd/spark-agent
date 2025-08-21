@@ -88,6 +88,77 @@ Once both agents are running, I'll be able to help you with your banking needs.`
     }
   },
 
+  // Send a message with streaming support for real-time updates
+  async sendMessageStream(sessionId, message, onStatus, onComplete, onError) {
+    try {
+      console.log(`Sending streaming message to host agent: "${message}"`);
+      
+      // Create the request payload
+      const payload = {
+        session_id: sessionId,
+        message: message,
+        user_id: 'user_1',
+        timestamp: new Date().toISOString(),
+      };
+
+      // Use EventSource for Server-Sent Events
+      const eventSource = new EventSource(
+        `${API_BASE_URL}/agent/chat/stream?` + new URLSearchParams({
+          session_id: payload.session_id,
+          message: payload.message,
+          user_id: payload.user_id,
+          timestamp: payload.timestamp
+        })
+      );
+
+      eventSource.onmessage = (event) => {
+        if (event.data === '[DONE]') {
+          eventSource.close();
+          return;
+        }
+
+        try {
+          const data = JSON.parse(event.data);
+          
+          if (data.type === 'status') {
+            // Intermediate status update
+            onStatus(data.content);
+          } else if (data.type === 'complete') {
+            // Final response
+            eventSource.close();
+            onComplete(data.content);
+          } else if (data.type === 'error') {
+            // Error occurred
+            eventSource.close();
+            onError(new Error(data.content));
+          }
+        } catch (parseError) {
+          console.error('Error parsing SSE data:', parseError);
+        }
+      };
+
+      eventSource.onerror = (error) => {
+        console.error('SSE connection error:', error);
+        eventSource.close();
+        
+        // Fall back to non-streaming if SSE fails
+        this.sendMessage(sessionId, message)
+          .then(response => {
+            if (response.isError) {
+              onError(new Error(response.message));
+            } else {
+              onComplete(response.message);
+            }
+          })
+          .catch(onError);
+      };
+
+    } catch (error) {
+      console.error('Error setting up streaming:', error);
+      onError(error);
+    }
+  },
+
   // Check if host agent is available
   async checkHealth() {
     try {

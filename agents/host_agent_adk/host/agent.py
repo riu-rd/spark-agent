@@ -45,6 +45,7 @@ class HostAgent:
         self.agents: str = ""
         self._agent = self.create_agent()
         self._user_id = DUMMY_USER_ID  # Using the dummy user for development
+        self._stream_updates = []  # Track status updates for streaming
         self._runner = Runner(
             app_name=self._agent.name,
             agent=self._agent,
@@ -190,10 +191,18 @@ class HostAgent:
                     "content": response,
                 }
             else:
-                yield {
-                    "is_task_complete": False,
-                    "updates": "SPARK is analyzing your transaction...",
-                }
+                # Check if there are any new status updates to send
+                if self._stream_updates:
+                    update = self._stream_updates.pop(0)
+                    yield {
+                        "is_task_complete": False,
+                        "updates": update,
+                    }
+                else:
+                    yield {
+                        "is_task_complete": False,
+                        "updates": "SPARK is analyzing your transaction...",
+                    }
 
     async def send_message_to_remote_agent(
         self, 
@@ -202,6 +211,9 @@ class HostAgent:
         tool_context: ToolContext
     ):
         """Send a task to a remote agent (Reconciler or Escalator)."""
+        # Add status update for streaming
+        self._stream_updates.append("Consulting with BPI specialist agents...")
+        
         print(f"DEBUG: Available remote agents: {list(self.remote_agent_connections.keys())}")
         print(f"DEBUG: Trying to connect to agent: '{agent_name}'")
         
@@ -211,6 +223,7 @@ class HostAgent:
             if agent_name.lower() in registered_name.lower() or registered_name.lower() in agent_name.lower():
                 matched_agent = registered_name
                 print(f"DEBUG: Found matching agent: '{matched_agent}' for requested '{agent_name}'")
+                self._stream_updates.append(f"Connected to {matched_agent}...")
                 break
         
         if not matched_agent:

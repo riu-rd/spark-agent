@@ -6,8 +6,9 @@ Provides HTTP REST endpoints for React frontend communication
 import asyncio
 import json
 import uuid
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, AsyncGenerator
 from datetime import datetime
+import time
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -59,10 +60,10 @@ async def startup_event():
     
     try:
         host_agent = await HostAgent.create(remote_agent_addresses=remote_agent_urls)
-        print(f"✓ Host Agent initialized successfully")
-        print(f"✓ Connected agents: {list(host_agent.remote_agent_connections.keys())}")
+        print(f"[OK] Host Agent initialized successfully")
+        print(f"[OK] Connected agents: {list(host_agent.remote_agent_connections.keys())}")
     except Exception as e:
-        print(f"✗ Failed to initialize Host Agent: {e}")
+        print(f"[ERROR] Failed to initialize Host Agent: {e}")
         print("  Note: The server will still start but some features may be limited")
 
 
@@ -144,20 +145,72 @@ async def chat_stream(request: ChatRequest):
     if not host_agent:
         raise HTTPException(status_code=503, detail="Host Agent not initialized")
     
-    async def generate():
+    async def generate() -> AsyncGenerator[str, None]:
         try:
+            print(f"[API] Starting stream for session: {request.session_id}")
+            
+            # Send initial status
+            yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing your message...', 'timestamp': time.time()})}\n\n"
+            await asyncio.sleep(0.1)
+            
+            # Check if message contains transaction-related keywords
+            message_lower = request.message.lower()
+            if any(word in message_lower for word in ['transaction', 'payment', 'transfer', 'money', 'problem', 'issue', 'failed']):
+                yield f"data: {json.dumps({'type': 'status', 'content': 'Scanning transaction records...', 'timestamp': time.time()})}\n\n"
+                await asyncio.sleep(0.5)
+                
+                yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing transaction patterns...', 'timestamp': time.time()})}\n\n"
+                await asyncio.sleep(0.5)
+            
+            # Process through host agent with status updates
+            response_text = ""
+            flagged_transactions = False
+            consulting_agents = False
+            
             async for event in host_agent.stream( # type: ignore
                 query=request.message,
                 session_id=request.session_id
             ):
-                # Format as SSE
                 if event.get("is_task_complete"):
-                    yield f"data: {json.dumps({'type': 'complete', 'content': event.get('content', '')})}\n\n"
+                    response_text = event.get('content', '')
+                    
+                    # Send final response
+                    yield f"data: {json.dumps({'type': 'complete', 'content': response_text, 'timestamp': time.time()})}\n\n"
                     yield "data: [DONE]\n\n"
+                    break
                 else:
-                    yield f"data: {json.dumps({'type': 'update', 'content': event.get('updates', '')})}\n\n"
+                    updates = event.get('updates', '')
+                    
+                    # Parse updates to provide specific status messages
+                    if 'consulting with bpi specialist' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Consulting with BPI specialist agents...', 'timestamp': time.time()})}\n\n"
+                        await asyncio.sleep(0.3)
+                    elif 'connected to reconciler' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Connected to transaction reconciliation specialist...', 'timestamp': time.time()})}\n\n"
+                        await asyncio.sleep(0.2)
+                    elif 'checking transaction patterns' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Checking transaction patterns...', 'timestamp': time.time()})}\n\n"
+                        await asyncio.sleep(0.3)
+                    elif 'evaluating for anomalies' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Evaluating for anomalies...', 'timestamp': time.time()})}\n\n"
+                        await asyncio.sleep(0.3)
+                    elif 'analyzing' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Analyzing transaction details...', 'timestamp': time.time()})}\n\n"
+                    elif 'flagged' in updates.lower() and not flagged_transactions:
+                        flagged_transactions = True
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Detected potential issues in transactions...', 'timestamp': time.time()})}\n\n"
+                        await asyncio.sleep(0.3)
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Preparing resolution strategy...', 'timestamp': time.time()})}\n\n"
+                    elif 'retry' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Initiating transaction retry process...', 'timestamp': time.time()})}\n\n"
+                    elif 'report' in updates.lower():
+                        yield f"data: {json.dumps({'type': 'status', 'content': 'Generating detailed report...', 'timestamp': time.time()})}\n\n"
+                    
+                    print(f"[API] Stream update: {updates}")
+                    
         except Exception as e:
-            yield f"data: {json.dumps({'type': 'error', 'content': str(e)})}\n\n"
+            print(f"[API] Stream error: {e}")
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e), 'timestamp': time.time()})}\n\n"
     
     return StreamingResponse(
         generate(),
