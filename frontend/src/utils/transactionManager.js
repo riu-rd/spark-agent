@@ -83,7 +83,7 @@ const mockTransactions = [
         amount: 1500.00,
         status: 'completed',
         date: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
-        method: 'TRYBE AI Assistant',
+        method: 'SPARK AI Assistant',
         source: 'demo',
         agentAssisted: true
     },
@@ -171,7 +171,7 @@ class TransactionManager {
         agentTransactions.unshift(newTransaction); // Add to beginning (newest first)
         this.notifyListeners();
         
-        console.log('TRYBE: New agent transaction added:', newTransaction);
+        console.log('SPARK: New agent transaction added:', newTransaction);
         return newTransaction;
     }
 
@@ -228,7 +228,7 @@ class TransactionManager {
             recipient: 'AI Suggested Recipient',
             amount: 1000.00,
             status: 'processing',
-            method: 'TRYBE AI Assistant',
+            method: 'SPARK AI Assistant',
             description: 'Transaction created by AI agent'
         };
 
@@ -272,6 +272,6 @@ export const createDemoAgentTransaction = () => {
     return transactionManager.simulateAgentTransaction({
         recipient: 'Business Name',
         amount: Math.floor(Math.random() * 5000) + 500,
-        method: 'TRYBE Smart Assistant'
+        method: 'SPARK Smart Assistant'
     });
 };

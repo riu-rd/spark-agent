@@ -1,7 +1,7 @@
-# TRYBE (Trust Your Vybe) - AI-Powered Digital Banking Solution
+# SPARK - AI-Powered Digital Banking Solution
 
 ## Overview
-TRYBE is an innovative AI-powered digital banking solution designed to address the persistent issues of "floating cash" and transaction reliability in banking applications. This project aims to enhance user experience by providing proactive, intelligent agents that monitor, predict, and resolve transactional anomalies in real-time.
+SPARK is an innovative AI-powered digital banking solution designed to address the persistent issues of "floating cash" and transaction reliability in banking applications. This project aims to enhance user experience by providing proactive, intelligent agents that monitor, predict, and resolve transactional anomalies in real-time.
 
 ## Key Features
 - **Discrepancy Detector**: Monitors transaction ledgers for anomalies and detects discrepancies in real-time.
@@ -32,7 +32,7 @@ TRYBE is an innovative AI-powered digital banking solution designed to address t
    ```
 2. Navigate to the project directory:
    ```
-   cd trybe-frontend
+   cd spark-frontend
    ```
 3. Install dependencies:
    ```

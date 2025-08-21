@@ -1,8 +1,8 @@
 {
-  "name": "trybe-frontend",
+  "name": "spark-frontend",
   "version": "1.0.0",
   "type": "module",
-  "description": "TRYBE - AI-powered digital banking solution with intelligent transaction monitoring",
+  "description": "SPARK - AI-powered digital banking solution with intelligent transaction monitoring",
   "private": true,
   "scripts": {
     "dev": "vite",
