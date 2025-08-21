@@ -217,8 +217,55 @@ app.post('/api/users/:userId/transactions', async (req, res) => {
   }
 });
 
+// Proxy endpoints for Host Agent (ADK)
+app.post('/api/agent/chat', async (req, res) => {
+  try {
+    console.log('Proxying chat request to host agent:', req.body);
+    // Forward request to host agent API on port 8000
+    const axios = (await import('axios')).default;
+    const response = await axios.post('http://localhost:8000/chat', req.body, {
+      timeout: 30000,
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+    console.log('Host agent response:', response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Error proxying to host agent:', error.message);
+    if (error.code === 'ECONNREFUSED') {
+      res.status(503).json({ 
+        error: 'Host agent is not running',
+        message: 'Please start the host agent API with: uv run python run_api.py'
+      });
+    } else if (error.response) {
+      // The request was made and the server responded with a status code
+      // that falls out of the range of 2xx
+      console.error('Host agent error response:', error.response.data);
+      res.status(error.response.status).json(error.response.data);
+    } else {
+      res.status(500).json({ error: 'Failed to communicate with host agent' });
+    }
+  }
+});
+
+app.get('/api/agent/health', async (req, res) => {
+  try {
+    const axios = (await import('axios')).default;
+    const response = await axios.get('http://localhost:8000/health', {
+      timeout: 5000
+    });
+    console.log('Host agent health check:', response.data);
+    res.json(response.data);
+  } catch (error) {
+    console.error('Host agent health check failed:', error.message);
+    res.status(503).json({ status: 'offline', error: error.message });
+  }
+});
+
 app.listen(port, () => {
   console.log(`API server running on http://localhost:${port}`);
   console.log('CORS enabled for all origins');
   console.log('Database connection configured for:', process.env.DB_HOST);
+  console.log('Host agent proxy enabled on /api/agent/*');
 });

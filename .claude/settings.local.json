@@ -25,7 +25,9 @@
       "Bash(npm run dev:*)",
       "Bash(curl:*)",
       "Bash(node:*)",
-      "Bash(del frontendtest-db.js)"
+      "Bash(del frontendtest-db.js)",
+      "Bash(pip install:*)",
+      "Bash(dir)"
     ],
     "deny": []
   }
