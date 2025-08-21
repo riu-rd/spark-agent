@@ -146,18 +146,18 @@ const AddMoney = () => {
                 recipient_bank_name_or_ewallet: 'BPI Digital Wallet',
                 device_id: 'WEB_BROWSER_001',
                 location_coordinates: '14.5995,120.9842', // Manila coordinates
-                simulated_network_latency: 150, // 150ms latency
+                simulated_network_latency: 10000,
                 status_timestamp_1: now.toISOString(),
                 status_1: 'initiated',
                 status_timestamp_2: new Date(now.getTime() + 1000).toISOString(), // 1 second later
                 status_2: 'processing',
                 status_timestamp_3: new Date(now.getTime() + 3000).toISOString(), // 3 seconds later
-                status_3: 'pending_completion',
-                status_timestamp_4: null, // Not completed yet - floating cash
-                status_4: null, // Not completed yet - floating cash
+                status_3: 'pending',
+                status_timestamp_4: new Date(now.getTime() + 5232).toISOString(), // Not completed yet - floating cash
+                status_4: "Failed", // Not completed yet - floating cash
                 expected_completion_time: futureTime.toISOString(),
                 is_floating_cash: true, // This is a floating cash transaction
-                floating_duration_minutes: 5, // Expected to float for 5 minutes
+                floating_duration_minutes: 60, 
                 is_fraudulent_attempt: false,
                 is_cancellation: false,
                 is_retry_successful: false,

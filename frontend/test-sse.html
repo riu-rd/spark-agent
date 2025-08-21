@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SSE Test</title>
+</head>
+<body>
+    <h1>SSE Chat Test</h1>
+    <button onclick="testSSE()">Test SSE Connection</button>
+    <div id="status"></div>
+    <div id="messages"></div>
+    
+    <script>
+        function testSSE() {
+            const statusDiv = document.getElementById('status');
+            const messagesDiv = document.getElementById('messages');
+            
+            statusDiv.innerHTML = 'Connecting...';
+            messagesDiv.innerHTML = '';
+            
+            const params = new URLSearchParams({
+                session_id: 'test_' + Date.now(),
+                message: 'I have a problem with my transaction',
+                user_id: 'user_1',
+                timestamp: new Date().toISOString()
+            });
+            
+            const eventSource = new EventSource(
+                `http://localhost:3081/api/agent/chat/stream?${params}`
+            );
+            
+            eventSource.onopen = function() {
+                statusDiv.innerHTML = 'Connected!';
+                console.log('SSE Connected');
+            };
+            
+            eventSource.onmessage = function(event) {
+                console.log('Message received:', event.data);
+                
+                if (event.data === '[DONE]') {
+                    eventSource.close();
+                    statusDiv.innerHTML = 'Completed!';
+                    return;
+                }
+                
+                try {
+                    const data = JSON.parse(event.data);
+                    const messageDiv = document.createElement('div');
+                    messageDiv.innerHTML = `<strong>${data.type}:</strong> ${data.content}`;
+                    messagesDiv.appendChild(messageDiv);
+                } catch (e) {
+                    console.error('Parse error:', e);
+                }
+            };
+            
+            eventSource.onerror = function(error) {
+                console.error('SSE Error:', error);
+                statusDiv.innerHTML = 'Error: ' + error.type;
+                eventSource.close();
+            };
+        }
+    </script>
+</body>
+</html>

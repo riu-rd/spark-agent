@@ -27,7 +27,8 @@
       "Bash(node:*)",
       "Bash(del frontendtest-db.js)",
       "Bash(pip install:*)",
-      "Bash(dir)"
+      "Bash(dir)",
+      "Bash(start http://localhost:5177/test-sse.html)"
     ],
     "deny": []
   }

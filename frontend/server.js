@@ -374,6 +374,29 @@ app.post('/api/transactions', async (req, res) => {
   }
 });
 
+// Endpoint to fetch messages/reports from database
+app.get('/api/messages', async (req, res) => {
+  try {
+    console.log('Fetching messages from database...');
+    
+    const result = await pool.query(
+      `SELECT 
+        message_id,
+        transaction_id,
+        report
+      FROM messages 
+      ORDER BY message_id DESC`,
+      []
+    );
+    
+    console.log(`Found ${result.rows.length} messages`);
+    res.json(result.rows);
+  } catch (error) {
+    console.error('Error fetching messages:', error);
+    res.status(500).json({ error: 'Internal server error', details: error.message });
+  }
+});
+
 // Proxy endpoints for Host Agent (ADK)
 app.post('/api/agent/chat', async (req, res) => {
   try {
@@ -406,18 +429,25 @@ app.post('/api/agent/chat', async (req, res) => {
   }
 });
 
+// Add OPTIONS handler for CORS preflight
+app.options('/api/agent/chat/stream', (req, res) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  res.sendStatus(200);
+});
+
 // Streaming chat endpoint using Server-Sent Events
 app.get('/api/agent/chat/stream', async (req, res) => {
   try {
     console.log('Proxying streaming chat request to host agent:', req.query);
     
-    // Set headers for SSE
-    res.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
-      'Access-Control-Allow-Origin': '*'
-    });
+    // Set headers for SSE with proper CORS
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('X-Accel-Buffering', 'no');
     
     // Create request body from query params
     const requestBody = {
