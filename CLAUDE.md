@@ -6,17 +6,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 This repository contains two integrated systems for AI-powered banking solutions:
 
-**SPARK**: Multi-agent banking transaction resolution system for BPI (Bank of the Philippine Islands) that detects and resolves floating cash anomalies. Uses A2A protocol for agent communication and PostgreSQL for transaction data.
+**SPARK (agents/)**: Multi-agent banking transaction resolution system for BPI (Bank of the Philippine Islands) that detects and resolves floating cash anomalies. Uses A2A protocol for agent communication and PostgreSQL for transaction data.
 
-**SPARK Frontend**: React-based digital banking application that provides the user interface for the AI-powered transaction monitoring system. Features real-time transaction tracking, payment processing, and intelligent anomaly detection.
+**SPARK Frontend (frontend/)**: React-based digital banking application that provides the user interface for the AI-powered transaction monitoring system. Features real-time transaction tracking, payment processing, and intelligent anomaly detection.
 
 ## Architecture
 
 ### SPARK (Banking Transaction Resolution System)
 - **Host Agent** (ADK): Primary client-facing agent with database access
-  - Detects floating cash anomalies in transactions
+  - Detects floating cash anomalies using ML models (trybe_discrepancy_detector.pkl)
   - Routes failed transactions to reconciler for retry
   - Sandboxed database queries limited to authorized user
+  - Integrates risk prediction model for transaction assessment
 - **Reconciler Agent** (ADK): Automated transaction retry system
   - Fetches transaction details from database
   - Creates retry transactions (RT1_, RT2_ prefixes)
@@ -27,6 +28,11 @@ This repository contains two integrated systems for AI-powered banking solutions
   - Creates ESCALATION reports (ESC_ prefix) for failures
   - Saves comprehensive reports to messages table
 - All agents use A2A protocol over HTTP (ports 8000, 8081)
+
+### Machine Learning Models
+- **Discrepancy Detector** (trybe_discrepancy_detector.pkl): Identifies transaction anomalies
+- **Risk Predictor** (trybe_risk_predictor.pkl): Assesses transaction risk levels
+- Located in `models/` and `agents/host_agent_adk/host/tools/`
 
 ### SPARK Frontend (Banking UI Application)
 - **React 18** with Vite build system for fast development
@@ -53,16 +59,36 @@ This repository contains two integrated systems for AI-powered banking solutions
 
 ## Development Commands
 
-### For SPARK agents:
+### Initial Setup for SPARK agents:
+```bash
+# Install uv package manager if not already installed
+pip install uv
+
+# Setup Host Agent
+cd agents/host_agent_adk
+uv venv
+uv sync
+
+# Setup Reconciler Agent
+cd agents/reconciler_agent
+uv venv
+uv sync
+```
+
+### Running SPARK agents:
 Each agent must run in separate terminal:
 ```bash
-# Host Agent (run with web interface)
-cd spark/host_agent_adk
-python -m host adk web
+# Host Agent (run with web interface, port 8000)
+cd agents/host_agent_adk
+uv run python -m google.adk.cli web
+
+# Or to run the API server directly:
+cd agents/host_agent_adk
+uv run python run_api.py
 
 # Reconciler Agent (run on port 8081)
-cd spark/reconciler_agent
-python __main__.py
+cd agents/reconciler_agent
+uv run python __main__.py
 
 # Note: Escalator is a sub-agent of Reconciler and doesn't run separately
 ```
@@ -89,7 +115,7 @@ npm run lint
 ## Environment Setup
 
 ### SPARK
-Create `.env` in `spark/`:
+Create `.env` in project root or in each agent directory:
 ```
 GOOGLE_API_KEY="your_api_key_here"
 # OR for Vertex AI:
@@ -97,12 +123,15 @@ GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your_project_id
 GOOGLE_CLOUD_LOCATION=us-central1
 
-# Database configuration
+# Database configuration (PostgreSQL)
 DB_NAME=your_database_name
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
+
+# Optional: Dummy user for development
+DUMMY_USER_ID=test_user_123
 ```
 
 ### SPARK Frontend
@@ -122,6 +151,7 @@ No additional environment variables required for basic frontend operation. The f
 - **Build Tool**: Vite 4.3+
 - **React Version**: 18.2.0
 - **Main Dependencies**: react, react-router-dom, tailwindcss, framer-motion, lucide-react
+- **Backend Communication**: Express server (server.js) for API integration
 
 ## Project Structure Patterns
 
@@ -141,9 +171,9 @@ No additional environment variables required for basic frontend operation. The f
 
 ## Testing Approach
 
-- Unit tests check agent and tool responses
-- Integration tests validate end-to-end agent interactions
-- Agents must be started in correct order for testing
+- Currently no automated tests are implemented
+- Manual testing through web interface and API endpoints
+- Agents must be started in correct order for testing (Host first, then Reconciler)
 
 ## Important Notes
 
@@ -152,6 +182,8 @@ No additional environment variables required for basic frontend operation. The f
 - Host agent must be started before testing user interactions
 - Reconciler agent handles all retry logic and escalation
 - Database queries are sandboxed to prevent cross-user data access
+- Agents communicate via A2A protocol (JSON-RPC over HTTP)
+- Host Agent API endpoints available at http://localhost:8000/docs
 
 ### Frontend (SPARK) 
 - Frontend runs on Vite dev server (default port 5173)
@@ -159,6 +191,32 @@ No additional environment variables required for basic frontend operation. The f
 - Implements mobile-first responsive design
 - Features real-time transaction status updates
 - Includes intelligent agent capabilities for anomaly detection and resolution
+- Express backend server (server.js) provides database integration
+
+### Inter-Agent Communication
+- Host Agent connects to Reconciler via remote_agent_connection.py
+- Messages are passed using A2A protocol with proper task IDs
+- Escalator runs as sub-agent within Reconciler's context
+
+## Common Development Tasks
+
+### Adding a new tool to an agent:
+1. Create tool module in agent's `tools/` directory
+2. Implement tool function with proper type hints and docstring
+3. Register tool in agent's `agent.py` using `@agent.tool()` decorator
+4. Update agent's prompt to include tool usage instructions
+
+### Debugging agent interactions:
+1. Check agent logs in terminal output
+2. Use Host Agent web interface at http://localhost:8000
+3. Monitor A2A protocol messages in agent logs
+4. Test individual tools before integration
+
+### Database operations:
+- All database queries use asyncpg or psycopg2
+- Connection pooling handled automatically
+- Queries are user-scoped for security
+- Transaction tables: transactions, retry_transactions, messages
 
 # Important Instruction Reminders
 Do what has been asked; nothing more, nothing less.

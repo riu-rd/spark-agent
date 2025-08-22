@@ -1,254 +1,298 @@
 # SPARK - Service Proactive AI Response Knowledge
 
-## Overview
+## 🚀 Overview
 
-SPARK is a sophisticated multi-agent AI system designed for Bank of the Philippine Islands (BPI) to proactively detect and resolve "floating cash" transactional anomalies. Built with **Google's Agent Development Kit (ADK)** and the **A2A (Agent-to-Agent) Protocol**, this system demonstrates state-of-the-art patterns for building collaborative AI agents that can automatically resolve transaction discrepancies.
+SPARK is a sophisticated multi-agent AI system designed for Bank of the Philippine Islands (BPI) to proactively detect and resolve transactional anomalies like "floating cash". Built with **Google's Agent Development Kit (ADK)** and the **A2A (Agent-to-Agent) Protocol**, this system demonstrates state-of-the-art patterns for building collaborative AI agents that can automatically resolve transaction discrepancies.
 
-## 🚀 Key Features
+### The Innovation
 
-- **Proactive Detection**: Automatically identifies floating cash anomalies in banking transactions
-- **Automated Resolution**: Intelligent transaction retry system with configurable retry limits
-- **Smart Escalation**: Comprehensive reporting for both successful resolutions and escalations
-- **Multilingual Support**: Seamless Tagalog-English communication
-- **Secure Architecture**: Sandboxed database access with user-level authorization
-- **Audit Trail**: Complete transaction history and resolution tracking
+SPARK creates an intelligent bridge between users and contact centers, transforming how banking issues are resolved while empowering both sides of the customer service equation.
 
-## 🏗️ Architecture
+**For Users**, SPARK provides:
+- Immediate problem detection before they even notice
+- Automatic resolution attempts while they go about their day
+- Clear, proactive communication about their transaction status
+- No more waiting on hold or explaining issues repeatedly
 
-SPARK uses three interconnected agents that communicate via the A2A protocol:
+**For Contact Centers**, SPARK delivers:
+- Pre-analyzed, comprehensive case reports when human intervention is needed
+- Reduced call volume by resolving routine issues automatically
+- Agents receive enriched context, not just "my payment failed"
+- More time to focus on complex cases that truly need human expertise
 
-```
-┌─────────────────────────────────────────────┐
-│            Google ADK Framework             │
-├─────────────────────────────────────────────┤
-│         A2A Protocol (HTTP/JSON-RPC)        │
-├─────────────────────────────────────────────┤
-│                  Agents                     │
-│  ┌─────────┐  ┌──────────┐  ┌─────────┐     │
-│  │  Host   │──│Reconciler│──│Escalator│     │
-│  │  Agent  │  │  Agent   │  │  Agent  │     │
-│  └─────────┘  └──────────┘  └─────────┘     │
-└─────────────────────────────────────────────┘
-```
+Think of SPARK as your banking guardian angel - it works quietly in the background, catching problems early, fixing what it can, and when it can't, it ensures that both you and the contact center agent have everything needed for a quick resolution. The agent no longer needs to ask "what happened?" because SPARK has already documented the entire journey.
 
-### Agent Responsibilities
+Starting with "floating cash" transactions, we're proving that AI doesn't replace human connection - it enhances it, making every interaction more meaningful and efficient. Scale this approach across hundreds of banking scenarios, and we're not just solving problems; we're preventing frustration before it begins.
 
-1. **Host Agent** (Port 8000)
-   - Primary client-facing interface
-   - Detects floating cash anomalies
-   - Routes failed transactions to reconciler
-   - Provides sandboxed database queries
+### Security Architecture
 
-2. **Reconciler Agent** (Port 8081)
-   - Fetches transaction details from database
-   - Creates retry transactions (RT1_, RT2_ prefixes)
-   - Updates transaction statuses
-   - Triggers escalator for report generation
+Unlike traditional multi-agent systems where all agents are tightly coupled, SPARK uses the A2A protocol to maintain security through separation:
 
-3. **Escalator Agent** (Sub-agent)
-   - Generates SUCCESS reports (SUC_ prefix) for resolved transactions
-   - Creates ESCALATION reports (ESC_ prefix) for unresolved issues
-   - Saves comprehensive reports to messages table
+- **Confidential agents** (like the Reconciler) run on BPI's secure infrastructure
+- **Representative agents** (like the Host) are deployed on the user side
+- Agents communicate remotely via secure A2A protocol
+- No sensitive business logic is exposed to client applications
+- Each agent runs in its own isolated environment
 
-## 📁 Project Structure
+## 📋 Requirements
 
-```
-trybe-lang/
-├── .env.example                   # Environment variables template
-├── README.md                      # This file
-├── CLAUDE.md                      # Instructions for Claude Code AI
-├── requirements.txt               # Python dependencies
-│
-└── spark/                         # SPARK banking resolution system
-    ├── host_agent_adk/            # Primary client-facing agent
-    │   ├── host/
-    │   │   ├── agent.py          # Main HostAgent implementation
-    │   │   ├── prompt.py         # System prompt configuration
-    │   │   ├── remote_agent_connection.py
-    │   │   └── tools/
-    │   │       ├── database_tools.py
-    │   │       └── query_agent_capabilities.py
-    │   └── pyproject.toml
-    │
-    ├── reconciler_agent/          # Transaction retry agent
-    │   ├── agent.py
-    │   ├── agent_executor.py     # A2A request handler
-    │   ├── prompt.py
-    │   ├── tools/
-    │   │   ├── transaction_fetcher.py
-    │   │   ├── retry_transaction.py
-    │   │   └── list_capabilities.py
-    │   ├── sub_agents/
-    │   │   └── escalator_agent/  # Report generation sub-agent
-    │   │       ├── agent.py
-    │   │       ├── prompt.py
-    │   │       └── tools/
-    │   │           └── create_report.py
-    │   └── __main__.py           # Entry point
-    │
-    └── .env   # Environment configuration (create from .env.example)
-```
+### System Requirements
+- **Python**: 3.11 or higher
+- **Node.js**: 16+ (for frontend)
+- **PostgreSQL**: Cloud or local server
+- **Operating System**: Windows, macOS, or Linux
 
-## 🛠️ Technology Stack
+### Python Package Management
+- **uv**: Modern Python package manager (recommended)
+- **pip**: For initial setup
 
-- **Framework**: Google Agent Development Kit (ADK)
-- **Protocol**: A2A (Agent-to-Agent) Protocol
-- **Language**: Python 3.11+
-- **LLM**: Google Gemini 2.5 Flash
-- **Database**: PostgreSQL
-- **Package Management**: uv
+## 🛠️ Quick Setup
 
-## 🚦 Getting Started
-
-### Prerequisites
-
-- Python 3.11 or higher
-- Google Cloud account with API access
-- PostgreSQL database
-- uv package manager
-
-### Installation
-
-1. Clone the repository:
+### 1. Clone the Repository
 ```bash
-git clone https://github.com/yourusername/trybe-lang.git
-cd trybe-lang/spark
+git clone https://github.com/yourusername/spark-agent.git
+cd spark-agent
 ```
 
-2. Set up virtual environments for each agent:
-```bash
-# For Host Agent
-cd host_agent_adk
-uv venv && source .venv/bin/activate
-uv pip install -e .
-
-# For Reconciler Agent (in new terminal)
-cd ../reconciler_agent
-uv venv && source .venv/bin/activate
-uv pip install -e .
-```
-
-3. Configure environment variables (see Environment Setup section)
-
-4. Set up PostgreSQL database credentials in the `.env file`
-
-## 🔧 Environment Setup
-
-A `.env.example` file is provided in the root directory with all required environment variables. Copy it to create your `.env` file:
-
+### 2. Environment Configuration
+Copy the environment template and configure:
 ```bash
 cp .env.example .env
 ```
 
-Then edit the `.env` file with your configuration:
-
+Edit `.env` with your credentials:
 ```env
-# GCP Credentials
-GOOGLE_GENAI_USE_VERTEXAI=TRUE  # Set to TRUE for Vertex AI, leave empty for API key
+# Google AI Configuration (choose one)
+GOOGLE_API_KEY="your_api_key_here"
+# OR for Vertex AI:
+GOOGLE_GENAI_USE_VERTEXAI=TRUE
 GOOGLE_CLOUD_PROJECT=your_project_id
 GOOGLE_CLOUD_LOCATION=us-central1
-GOOGLE_CLOUD_STORAGE_BUCKET=your_bucket_name
-GOOGLE_API_KEY=your_api_key_here  # Required if not using Vertex AI
 
-# PostgreSQL Credentials
+# PostgreSQL Database Configuration
 DB_NAME=your_database_name
 DB_HOST=localhost
 DB_PORT=5432
 DB_USER=your_db_user
 DB_PASSWORD=your_db_password
 
-# Dummy User for Development
-DUMMY_USER_ID=test_user_123  # Used for development/testing
+# Optional: Development User
+DUMMY_USER_ID=test_user_123
 ```
 
-**Note**: Choose either Google API Key OR Vertex AI configuration, not both.
+### 3. Python Environment Setup
 
-## 🏃 Running the System
-
-Start each agent in a separate terminal:
-
-### Terminal 1: Host Agent
+#### Option A: Using venv
 ```bash
-cd spark/host_agent_adk
-uv run --active adk web
+# Create virtual environment
+python -m venv venv
+
+# Activate virtual environment
+# On Windows:
+venv\Scripts\activate
+# On macOS/Linux:
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+pip install uv  # Install uv package manager
 ```
-Access the web interface at http://localhost:8000
 
-### Terminal 2: Reconciler Agent
+#### Option B: Using Conda
 ```bash
-cd spark/reconciler_agent
+# Create conda environment
+conda create -n spark python=3.11
+conda activate spark
+
+# Install dependencies
+pip install -r requirements.txt
+pip install uv  # Install uv package manager
+```
+
+### 4. Agent Dependencies Setup
+```bash
+# Setup Host Agent
+cd agents/host_agent_adk
+uv venv
+uv sync
+cd ../..
+
+# Setup Reconciler Agent
+cd agents/reconciler_agent
+uv venv
+uv sync
+cd ../..
+```
+
+### 5. Frontend Setup
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+## 🚦 Running the Complete System
+
+**Important**: Run each component in a separate terminal window. Ensure your Python environment is activated in each terminal.
+
+### Terminal 1: Reconciler Agent
+```bash
+cd agents/reconciler_agent
 uv run --active .
 ```
-The reconciler runs on port 8081
 
-**Note**: The Escalator agent is a sub-agent of Reconciler and doesn't run separately.
-
-## 💬 Usage Examples
-
-### Detecting Floating Cash
-```
-User: "Check for any floating cash issues in my account"
-Host Agent: Queries database for anomalies and identifies problematic transactions
+### Terminal 2: Host Agent API
+```bash
+cd agents/host_agent_adk
+uv run python run_api.py
 ```
 
-### Resolving Transactions
-```
-User: "Resolve transaction TXN_12345"
-Host Agent: Routes to Reconciler → Creates retry transaction → Updates status → Generates report
-```
-
-### Querying Status
-```
-User: "What's the status of my recent transactions?"
-Host Agent: Retrieves transaction history with resolution statuses
+### Terminal 3: Frontend Backend Server
+```bash
+cd frontend
+npm run server
 ```
 
-## 🔐 Security Features
+### Terminal 4: React Frontend
+```bash
+cd frontend
+npm run dev
+```
 
-- **User Sandboxing**: All database queries are restricted to authorized user data
-- **Secure Credentials**: API keys and database credentials stored in environment variables
-- **Transaction Integrity**: Audit trail for all transaction modifications
-- **A2A Protocol Security**: Secure inter-agent communication
+**Alternative for Frontend**: Run both frontend and backend in one terminal:
+```bash
+cd frontend
+npm run dev:all
+```
 
-## 📊 Transaction Flow
+## 🏗️ System Architecture
 
-1. **Detection Phase**
-   - Host Agent identifies floating cash anomalies
-   - Validates user authorization
-   - Retrieves transaction details
+```
+┌──────────────────────────────────────────────────────────┐
+│                    User Interface                        │
+│                     React + Vite                         │
+└────────────────────┬─────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────┐
+│                 Express Backend Server                   │
+└────────────────────┬─────────────────────────────────────┘
+                     │
+┌────────────────────▼─────────────────────────────────────┐
+│                     Host Agent                           │
+│                  Google ADK + API                        │
+│            • Anomaly Detection (ML Models)               │
+│            • User Interface Bridge                       │
+│            • Database Query Sandboxing                   │
+└────────────────────┬─────────────────────────────────────┘
+                     │ A2A Protocol
+┌────────────────────▼─────────────────────────────────────┐
+│                  Reconciler Agent                        │
+│            • Transaction Retry Logic                     │
+│            • Status Management                           │
+│            • Report Generation Trigger                   │
+└────────────────────┬─────────────────────────────────────┘
+                     │ Sub-agent
+┌────────────────────▼─────────────────────────────────────┐
+│                  Escalator Agent                         │
+│                    (Sub-agent)                           │
+│            • SUCCESS Report Generation                   │
+│            • ESCALATION Report Creation                  │
+│            • Database Report Storage                     │
+└──────────────────────────────────────────────────────────┘
+```
 
-2. **Resolution Phase**
-   - Reconciler creates retry transaction (RT1_, RT2_)
-   - Attempts transaction processing
-   - Updates original and retry transaction statuses
+## 📁 Project Structure
 
-3. **Reporting Phase**
-   - Escalator generates appropriate report (SUCCESS or ESCALATION)
-   - Saves comprehensive report to messages table
-   - Returns status to user
+```
+spark-agent/
+├── README.md                      # This file
+├── CLAUDE.md                      # AI assistant guidance
+├── requirements.txt               # Python dependencies
+├── .env.example                   # Environment template
+├── .env                          # Your configuration (create this)
+│
+├── agents/                        # Multi-agent system
+│   ├── README.md                 # Agent system documentation
+│   ├── direct_client.py          # Direct A2A client example
+│   ├── host_agent_adk/           # Primary user-facing agent
+│   │   ├── agent.py
+│   │   ├── api_server.py
+│   │   ├── run_api.py
+│   │   └── tools/
+│   └── reconciler_agent/         # Transaction resolution agent
+│       ├── __main__.py
+│       ├── agent.py
+│       └── sub_agents/
+│           └── escalator_agent/  # Report generation sub-agent
+│
+├── frontend/                      # React application
+│   ├── README.md                 # Frontend documentation
+│   ├── package.json
+│   ├── vite.config.js
+│   ├── server.js                 # Express backend
+│   ├── src/
+│   │   ├── components/           # React components
+│   │   ├── pages/               # Application pages
+│   │   └── services/            # API services
+│   └── public/
+│
+└── models/                        # ML models and notebooks
+    ├── README.md                 # Models documentation
+    ├── notebooks/                # Google Colab notebooks
+    │   ├── 1_synthetic_data_generation.ipynb
+    │   ├── 2_EDA.ipynb
+    │   ├── 3_Trials.ipynb
+    │   └── 4_experimentation.ipynb
+    ├── datasets/                 # Synthetic data (generated)
+    │   ├── transactions_fixed.csv
+    │   └── user_wallet_balances.csv
+    ├── trybe_discrepancy_detector.pkl  # Rule-based detector
+    ├── trybe_risk_predictor.pkl        # ML risk model
+    ├── trybe_models.py                 # Model utilities
+    └── trybe_inference_demo.ipynb      # Demo notebook
+```
 
-## 📝 Development Guidelines
+## 🔑 Key Features
 
-### Adding New Tools
-1. Create tool module in appropriate `tools/` directory
-2. Implement tool function with proper type hints
-3. Register tool in agent configuration
-4. Update prompt to include tool usage instructions
+### Intelligent Transaction Monitoring
+- **Real-time anomaly detection** using machine learning models
+- **Rule-based discrepancy detection** for known patterns
+- **Risk assessment** for transaction prioritization
 
-### Extending Agent Capabilities
-1. Follow Google ADK patterns
-2. Use A2A protocol for inter-agent communication
-3. Implement comprehensive error handling
-4. Add logging for debugging
+### Automated Resolution
+- **Smart retry logic** with configurable attempts (RT1_, RT2_ prefixes)
+- **Automatic status updates** for successful resolutions
+- **Comprehensive reporting** for both successes and escalations
 
-## 🤝 Contributing
+### Secure Multi-Agent Architecture
+- **A2A Protocol** for secure agent-to-agent communication
+- **Sandboxed database access** preventing cross-user data exposure
+- **Separated deployment** of confidential and public agents
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/new-capability`)
-3. Implement changes with tests
-4. Commit with descriptive messages
-5. Push to your fork
-6. Open a Pull Request
+### User Experience
+- **Modern React interface** with real-time updates
+- **Mobile-first responsive design**
+- **Multilingual support** (English/Tagalog)
+- **No manual intervention required** for most issues
+
+## 🔍 Troubleshooting
+
+### Common Issues
+
+**Database Connection Failed**
+- Verify PostgreSQL is running
+- Check `.env` database credentials
+- Ensure database exists and user has permissions
+
+**Agent Communication Errors**
+- Confirm all agents are running on correct ports
+- Check firewall settings
+- Verify A2A protocol messages in logs
+
+**Frontend Not Loading**
+- Ensure `npm install` completed successfully
+- Check that both frontend and backend servers are running
+- Verify API endpoints in browser console
 
 ## 📄 License
 
@@ -256,18 +300,18 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 ## 🙏 Acknowledgments
 
-- Google Agent Development Kit (ADK) team
-- A2A Protocol specification contributors
-- Bank of the Philippine Islands (BPI) for the use case
-- Google Cloud Platform for infrastructure support
+- **Google Agent Development Kit (ADK)** team for the framework
+- **A2A Protocol** contributors for interoperability standards
+- **Bank of the Philippine Islands (BPI)** for the use case
+- **Google Cloud Platform** for infrastructure support
 
-## 📚 Resources
+## 📧 Support
 
-- [Google ADK Documentation](https://google.github.io/adk-docs/)
-- [A2A Protocol Specification](https://developers.googleblog.com/en/a2a-a-new-era-of-agent-interoperability/)
-- [Gemini API Documentation](https://ai.google.dev/)
-- [PostgreSQL Documentation](https://www.postgresql.org/docs/)
+For issues, questions, or contributions:
+- Open an issue on GitHub
+- Contact the development team
+- Check the documentation for detailed guides
 
 ---
 
-**Note**: This system is designed for production banking environments with appropriate security measures and compliance requirements.
+**Note**: This system is designed for banking environments. Ensure proper security measures and compliance requirements are met before deployment.

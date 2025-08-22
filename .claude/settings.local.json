@@ -8,27 +8,20 @@
       "Bash(rm:*)",
       "Bash(python test_database_tools.py)",
       "Bash(del test_database_tools.py)",
-      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\test_host_improvements.py\")",
-      "Bash(python test:*)",
       "Bash(python:*)",
-      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\reconciler_agent\\tools\\log_message.py\")",
       "Bash(timeout:*)",
       "mcp__ide__executeCode",
       "Bash(del test_minimal.py test_final.py complete_test.py inspect_models.py)",
       "Bash(del verify_test.py)",
       "Bash(uv run:*)",
       "Bash(cp:*)",
-      "Bash(uv sync:*)",
-      "Bash(del \"C:\\Users\\dariu\\OneDrive\\Desktop\\Git\\trybe-lang\\spark\\host_agent_adk\\host\\tools\\query_agent_capabilities.py\")",
       "Bash(npm install)",
       "Bash(node server.js)",
       "Bash(npm run dev:*)",
       "Bash(curl:*)",
       "Bash(node:*)",
-      "Bash(del frontendtest-db.js)",
       "Bash(pip install:*)",
-      "Bash(dir)",
-      "Bash(start http://localhost:5177/test-sse.html)"
+      "Bash(dir)"
     ],
     "deny": []
   }
