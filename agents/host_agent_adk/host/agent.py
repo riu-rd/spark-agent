@@ -93,10 +93,17 @@ class HostAgent:
 
     def create_agent(self) -> Agent:
         """Create the ADK Agent instance."""
+        generation_config = types.GenerateContentConfig(
+            temperature=0.0,
+            top_p=0.1,
+            top_k=10
+        )
+
         return Agent(
             model="gemini-2.5-flash",
             name="SPARK_Host_Agent",
             instruction=self.root_instruction,
+            generate_content_config=generation_config,
             description="SPARK Host Agent - AI-powered support for BPI transaction discrepancy resolution",
             tools=[
                 query_user_transactions,
@@ -104,6 +111,7 @@ class HostAgent:
                 self.send_message_to_remote_agent,
                 self.get_transaction_status,
             ],
+
         )
 
     def root_instruction(self, context: ReadonlyContext) -> str:

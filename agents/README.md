@@ -132,6 +132,9 @@ agents/
 │           ├── trybe_models.py          # ML model integration
 │           └── trybe_discrepancy_detector.pkl  # Detection model
 │
+├── TEST_host_agent_adk/          # Test results and outputs for host agent
+│                                 # Contains testing artifacts and validation results
+│
 └── reconciler_agent/             # Transaction resolution agent
     ├── __init__.py
     ├── __main__.py              # Entry point

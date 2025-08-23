@@ -6,6 +6,9 @@ google-cloud-aiplatform
 google-genai
 google-adk
 
+google-adk[eval]
+rouge-score
+
 psycopg2-binary
 pydantic
 python-dotenv

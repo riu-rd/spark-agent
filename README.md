@@ -219,6 +219,7 @@ spark-agent/
 │   │   ├── api_server.py
 │   │   ├── run_api.py
 │   │   └── tools/
+│   ├── TEST_host_agent_adk/      # Test results for host agent
 │   └── reconciler_agent/         # Transaction resolution agent
 │       ├── __main__.py
 │       ├── agent.py
