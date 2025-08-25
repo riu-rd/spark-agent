@@ -2,6 +2,8 @@
 
 ## 🚀 Overview
 
+![Agent Workflow](materials/agent_workflow.png)
+
 SPARK is a sophisticated multi-agent AI system designed for Bank of the Philippine Islands (BPI) to proactively detect and resolve transactional anomalies like "floating cash". Built with **Google's Agent Development Kit (ADK)** and the **A2A (Agent-to-Agent) Protocol**, this system demonstrates state-of-the-art patterns for building collaborative AI agents that can automatically resolve transaction discrepancies.
 
 ### The Innovation
