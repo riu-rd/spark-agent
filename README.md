@@ -1,5 +1,7 @@
 # SPARK - Service Proactive AI Response Knowledge
 
+![Logo](materials/logo.png)
+
 ## 🚀 Overview
 
 ![Agent Workflow](materials/agent_workflow.png)
